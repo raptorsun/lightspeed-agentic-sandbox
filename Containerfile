@@ -95,7 +95,7 @@ RUN ARCH=$(uname -m) && \
         chmod +x /usr/local/bin/dumb-init; \
     else \
         echo "WARN: generic deps dir not found, fetching from network (non-hermetic)" && \
-        curl -sL "https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/stable-4.21/openshift-client-linux.tar.gz" | \
+        curl -sL "https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/4.21.15/openshift-client-linux.tar.gz" | \
             tar -xz -C /usr/local/bin oc kubectl && \
         chmod +x /usr/local/bin/oc /usr/local/bin/kubectl && \
         RG_ARCH=$([ "$ARCH" = "aarch64" ] && echo "aarch64-unknown-linux-gnu" || echo "x86_64-unknown-linux-musl") && \
