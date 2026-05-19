@@ -43,6 +43,11 @@ RUN if [ -f /cachi2/cachi2.env ]; then \
     fi
 
 # ---------------------------------------------------------------------------
+# origincli stage: provides oc (kubectl is a symlink to oc in this image)
+# ---------------------------------------------------------------------------
+FROM quay.io/openshift/origin-cli:4.21 AS origincli
+
+# ---------------------------------------------------------------------------
 # Runtime stage: minimal image with only what the agent needs
 # ---------------------------------------------------------------------------
 FROM registry.redhat.io/rhel9/python-312:latest
@@ -76,17 +81,17 @@ COPY --from=builder /app/site-packages /opt/app-root/lib64/python3.12/site-packa
 COPY --from=builder /app/node_modules /app/node_modules
 RUN ln -s /app/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 
-# Install generic-fetched binaries (oc, kubectl, ripgrep, dumb-init).
+# oc from the origincli stage; kubectl is a symlink to oc in that image
+COPY --from=origincli /usr/bin/oc /usr/bin/oc
+RUN ln -s /usr/bin/oc /usr/bin/kubectl
+
+# Install generic-fetched binaries (ripgrep, dumb-init).
 # In hermetic builds these are at /cachi2/output/deps/generic/.
-# In non-hermetic builds the COPY will be skipped if the path doesn't exist,
-# so we use a script that handles both cases.
+# In non-hermetic builds fall back to fetching from the network.
 COPY artifacts.lock.yaml ./
 RUN ARCH=$(uname -m) && \
     GENERIC_DIR="/cachi2/output/deps/generic" && \
     if [ -d "$GENERIC_DIR" ]; then \
-        # oc + kubectl
-        tar -xzf "$GENERIC_DIR/openshift-client-linux-${ARCH}.tar.gz" -C /usr/local/bin oc kubectl && \
-        chmod +x /usr/local/bin/oc /usr/local/bin/kubectl && \
         # ripgrep
         tar -xzf "$GENERIC_DIR/ripgrep-${ARCH}.tar.gz" --strip-components=1 -C /usr/local/bin --wildcards '*/rg' && \
         chmod +x /usr/local/bin/rg && \
@@ -95,9 +100,6 @@ RUN ARCH=$(uname -m) && \
         chmod +x /usr/local/bin/dumb-init; \
     else \
         echo "WARN: generic deps dir not found, fetching from network (non-hermetic)" && \
-        curl -sL "https://mirror.openshift.com/pub/openshift-v4/${ARCH}/clients/ocp/4.21.15/openshift-client-linux.tar.gz" | \
-            tar -xz -C /usr/local/bin oc kubectl && \
-        chmod +x /usr/local/bin/oc /usr/local/bin/kubectl && \
         RG_ARCH=$([ "$ARCH" = "aarch64" ] && echo "aarch64-unknown-linux-gnu" || echo "x86_64-unknown-linux-musl") && \
         curl -sL "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15.1.0-${RG_ARCH}.tar.gz" | \
             tar -xz --strip-components=1 -C /usr/local/bin --wildcards '*/rg' && \
