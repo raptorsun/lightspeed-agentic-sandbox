@@ -33,7 +33,7 @@ Returns HTTP 200 when all checks pass, HTTP 503 when any check fails. Not under 
 
 ## Readiness Checks
 
-**R1 — Credential env var exists.** Check the expected env var is set and non-empty. Does NOT validate the key's value.
+**R1 — Provider and credential env.** `LIGHTSPEED_AGENT_PROVIDER` MUST be set and non-empty (no default for readiness). Then check the expected credential env var is set and non-empty. Does NOT validate the key's value.
 
 | Provider | Required env var(s) |
 |----------|-------------------|

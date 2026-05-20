@@ -18,6 +18,12 @@ from lightspeed_agentic.health import (
 )
 
 
+def test_check_provider_env_provider_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LIGHTSPEED_AGENT_PROVIDER", raising=False)
+    assert check_provider_env() == "error: LIGHTSPEED_AGENT_PROVIDER not set"
+    assert check_provider_endpoint() == "error: LIGHTSPEED_AGENT_PROVIDER not set"
+
+
 def test_check_provider_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
