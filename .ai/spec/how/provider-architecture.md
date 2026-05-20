@@ -10,7 +10,7 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 |------|----------|
 | `src/lightspeed_agentic/__init__.py` | Re-exports `create_provider`, `EventLogger`, `AgentProvider`, event dataclasses, `ProviderQueryOptions`. |
 | `src/lightspeed_agentic/app.py` | `app: FastAPI` — constructs provider via `create_provider()`, builds router with `build_router(...)`, `include_router(..., prefix="/v1/agent")`, defines `GET /health`. |
-| `src/lightspeed_agentic/factory.py` | `ProviderName`, `create_provider()` — `match` on name/env, lazy-imports `ClaudeProvider`, `GeminiProvider`, `OpenAIProvider`, `DeepAgentsProvider`. |
+| `src/lightspeed_agentic/factory.py` | `ProviderName`, `create_provider()` — `match` on name/env, lazy-imports `ClaudeProvider`, `GeminiProvider`, `OpenAIProvider`. |
 | `src/lightspeed_agentic/types.py` | `stringify()`, truncation-related constants, event datclasses (`TextDeltaEvent`, `ThinkingDeltaEvent`, `ContentBlockStopEvent`, `ToolCallEvent`, `ToolResultEvent`, `ResultEvent`), `ProviderQueryOptions`, abstract `AgentProvider`. |
 | `src/lightspeed_agentic/tools.py` | `DEFAULT_ALLOWED_TOOLS`. |
 | `src/lightspeed_agentic/logging.py` | `EventLogger` — thinking buffer, flush thresholds, truncation caps, structured log lines per event type. |
@@ -20,7 +20,6 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 | `src/lightspeed_agentic/providers/claude.py` | `ClaudeProvider` — `_ensure_skills_link()`, `query()` using `ClaudeAgentOptions`, `query` stream, maps `StreamEvent` / `AssistantMessage` / `ResultMessage` to `ProviderEvent`, `output_format` from schema. |
 | `src/lightspeed_agentic/providers/gemini.py` | `_load_skills_toolset()`, `GeminiProvider` — `ExecuteBashTool` with auto-confirm wrapper and `bash -c` wrapping, optional search tools, `SkillToolset`, `Agent` + `Runner` + `InMemorySessionService`, `response_schema` when output schema set, usage aggregation. |
 | `src/lightspeed_agentic/providers/openai.py` | `_RawJsonSchema`, `_ensure_openai_init()`, `OpenAIProvider` — `AsyncOpenAI`, `OpenAIResponsesModel`, `SandboxAgent`, `UnixLocalSandboxClient`, capabilities `Shell`/`Filesystem`/`Skills`, `Runner.run_streamed`, stream event mapping. |
-| `src/lightspeed_agentic/providers/deepagents.py` | `_json_schema_to_pydantic()`, `_resolve_field_type()`, `_resolve_model()`, `_model_cache`, `DeepAgentsProvider` — `create_deep_agent`, `LocalShellBackend`, LangGraph `astream`, AIMessage/ToolMessage handling, `structured_response` extraction. |
 
 ## Data Flow
 
@@ -43,15 +42,12 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 - **claude-agent-sdk:** `query`, `ClaudeAgentOptions`, message types, `structured_output` on result.
 - **google-adk / google.genai:** `Agent`, `Runner`, `InMemorySessionService`, `ExecuteBashTool`, `SkillToolset`, `GenerateContentConfig`.
 - **openai-agents (+ openai):** `SandboxAgent`, `Runner`, `UnixLocalSandboxClient`, stream item types, `AgentOutputSchemaBase` subclass for raw schema.
-- **deepagents / LangChain:** `create_deep_agent`, `LocalShellBackend`, `HumanMessage` input, `values` stream mode, optional `ChatAnthropicVertex` for Vertex Claude.
 
 ## Implementation Notes
 
 - **Claude skills layout:** `_ensure_skills_link` creates `.claude/skills` with symlinks to child dirs of the skill root, preferring writable cwd else temp workspace; module-level cache keyed by cwd string.
 - **Gemini bash:** Monkey-patches `run_async` to force confirmation and shell wrapping via `shlex.quote`.
 - **OpenAI init:** One-time verbose logging and tracing disable.
-- **Deep Agents schema:** Flat JSON-schema type map for primitives; nested objects recurse; enums via `Literal`; `response_format` may also pass through pre-built Pydantic types.
-- **Deep Agents model:** Bare `gemini` names map to `google_genai:` or `google_vertexai:` prefix based on API key presence; colon already present passes through; Vertex Claude uses env-gated `ChatAnthropicVertex` instance.
 - **Containerfile:** Multi-stage build — builder installs hashed requirements into target site-packages and installs Claude Code via npm (`npm ci` under cachi2 or global install fallback); runtime copies site-packages, `node_modules`, app `src`, sets user `agent`, `dumb-init` entrypoint, Uvicorn CMD on port 8080.
 - **Makefile:** `uv sync` targets, `requirements` generates hashed per-arch requirements; `rpm-lockfile` regenerates RPM lock via fedora tool image; `image` builds local container.
 - **Tests / evals:** HTTP clients target `POST /v1/agent/run` (see `tests/` and `evals/`).

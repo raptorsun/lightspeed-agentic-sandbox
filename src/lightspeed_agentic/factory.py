@@ -7,15 +7,7 @@ from typing import Literal
 
 from lightspeed_agentic.types import AgentProvider
 
-ProviderName = Literal[
-    "claude",
-    "gemini",
-    "openai",
-    "deepagents",
-    "deepagents-claude",
-    "deepagents-gemini",
-    "deepagents-openai",
-]
+ProviderName = Literal["claude", "gemini", "openai"]
 
 
 def create_provider(name: str | None = None) -> AgentProvider:
@@ -34,13 +26,7 @@ def create_provider(name: str | None = None) -> AgentProvider:
             from lightspeed_agentic.providers.openai import OpenAIProvider
 
             return OpenAIProvider()
-        case "deepagents" | "deepagents-claude" | "deepagents-gemini" | "deepagents-openai":
-            from lightspeed_agentic.providers.deepagents import DeepAgentsProvider
-
-            return DeepAgentsProvider()
         case _:
             raise ValueError(
-                "Unknown provider: "
-                f"{provider_name}. Supported: claude, gemini, openai, deepagents, "
-                "deepagents-claude, deepagents-gemini, deepagents-openai"
+                f"Unknown provider: {provider_name}. Supported: claude, gemini, openai"
             )

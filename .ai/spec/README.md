@@ -30,6 +30,6 @@ AI agents (Claude). Specs optimize for precision, unambiguous rules, and machine
 
 ## Project Context
 
-This is the agent runtime that runs inside ephemeral sandbox pods. The operator sends requests to `POST /v1/agent/run` and receives structured JSON responses. The runtime wraps multiple LLM provider SDKs (Claude, Gemini, OpenAI, DeepAgents) behind a single interface.
+This is the agent runtime that runs inside ephemeral sandbox pods. The operator sends requests to `POST /v1/agent/run` and receives structured JSON responses. The runtime wraps multiple LLM provider SDKs (Claude, Gemini, OpenAI) behind a single interface.
 
 Jira tracking: Feature OCPSTRAT-3095, Epic OLS-2894.
