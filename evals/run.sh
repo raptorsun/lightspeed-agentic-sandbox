@@ -18,7 +18,7 @@ if [ -f "$GCLOUD_ADC" ]; then
     GCLOUD_MOUNT="-v $GCLOUD_ADC:/tmp/gcloud-adc.json:ro,Z -e GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcloud-adc.json"
 fi
 
-PROVIDERS=("claude" "gemini" "openai" "deepagents-claude" "deepagents-gemini" "deepagents-openai")
+PROVIDERS=("claude" "gemini" "openai")
 CONTAINERS=()
 WORKDIRS=()
 OUTDIRS=()
@@ -37,23 +37,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Map provider names to LIGHTSPEED_AGENT_PROVIDER values
-provider_env() {
-    case "$1" in
-        deepagents-claude|deepagents-gemini|deepagents-openai) echo "deepagents" ;;
-        *) echo "$1" ;;
-    esac
-}
-
 # Map provider names to model env var overrides
 model_env() {
     case "$1" in
-        claude)            echo "-e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}" ;;
-        gemini)            echo "-e GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-pro-preview}" ;;
-        openai)            echo "-e OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.4}" ;;
-        deepagents-claude) echo "-e DEEPAGENTS_MODEL=${DEEPAGENTS_MODEL:-claude-opus-4-6}" ;;
-        deepagents-gemini) echo "-e DEEPAGENTS_MODEL=${DEEPAGENTS_GEMINI_MODEL:-gemini-3.1-pro-preview}" ;;
-        deepagents-openai) echo "-e DEEPAGENTS_MODEL=${DEEPAGENTS_OPENAI_MODEL:-gpt-5.4}" ;;
+        claude) echo "-e ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}" ;;
+        gemini) echo "-e GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-pro-preview}" ;;
+        openai) echo "-e OPENAI_MODEL=${OPENAI_MODEL:-gpt-5.4}" ;;
     esac
 }
 
@@ -64,7 +53,7 @@ mkdir -p "$(pwd)/.eval-workspaces"
 for i in "${!PROVIDERS[@]}"; do
     name="${PROVIDERS[$i]}"
     port=$((BASE_PORT + i))
-    agent_provider=$(provider_env "$name")
+    agent_provider="$name"
     workdir=$(mktemp -d "$(pwd)/.eval-workspaces/eval-${name}-XXXXXX")
     outdir="$(pwd)/.eval-workspaces/output-${name}"
     mkdir -p "$outdir"

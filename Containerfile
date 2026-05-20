@@ -134,4 +134,4 @@ CMD ["python3.12", "-m", "uvicorn", "lightspeed_agentic.app:app", "--host", "0.0
 
 LABEL name="lightspeed-agentic-sandbox" \
       summary="Multi-provider agent sandbox for OpenShift Lightspeed" \
-      description="Python agent with Claude, Gemini, OpenAI, and DeepAgents provider support"
+      description="Python agent with Claude, Gemini, and OpenAI provider support"

@@ -2,7 +2,7 @@
 # Run E2E BDD tests against one live sandbox container at a time.
 #
 # Usage (from lightspeed-agentic-sandbox/):
-#   bash scripts/e2e-containers.sh                  # all six providers (sequential)
+#   bash scripts/e2e-containers.sh                  # all three providers (sequential)
 #   bash scripts/e2e-containers.sh openai          # one provider, default model from config.env
 #   bash scripts/e2e-containers.sh openai gpt-4.1-nano   # optional model override
 #
@@ -92,10 +92,7 @@ cleanup() {
 trap cleanup EXIT
 
 provider_to_image_provider() {
-    case "$1" in
-        deepagents-claude | deepagents-gemini | deepagents-openai) echo "deepagents" ;;
-        *) echo "$1" ;;
-    esac
+    echo "$1"
 }
 
 apply_model_override() {
@@ -105,15 +102,6 @@ apply_model_override() {
         claude) export ANTHROPIC_MODEL="${model}" ;;
         gemini) export GEMINI_MODEL="${model}" ;;
         openai) export OPENAI_MODEL="${model}" ;;
-        deepagents-claude) export DEEPAGENTS_MODEL="${model}" ;;
-        deepagents-gemini)
-            export DEEPAGENTS_GEMINI_MODEL="${model}"
-            export DEEPAGENTS_MODEL="${model}"
-            ;;
-        deepagents-openai)
-            export DEEPAGENTS_OPENAI_MODEL="${model}"
-            export DEEPAGENTS_MODEL="${model}"
-            ;;
         *)
             echo "e2e: unknown provider for model override: ${provider}" >&2
             exit 1
@@ -127,26 +115,10 @@ model_env_var() {
         claude) printf '%s' "ANTHROPIC_MODEL=${ANTHROPIC_MODEL}" ;;
         gemini) printf '%s' "GEMINI_MODEL=${GEMINI_MODEL}" ;;
         openai) printf '%s' "OPENAI_MODEL=${OPENAI_MODEL}" ;;
-        deepagents-claude) printf '%s' "DEEPAGENTS_MODEL=${DEEPAGENTS_MODEL}" ;;
-        deepagents-gemini)
-            printf '%s' "DEEPAGENTS_MODEL=${DEEPAGENTS_GEMINI_MODEL:-${DEEPAGENTS_MODEL}}"
-            ;;
-        deepagents-openai)
-            printf '%s' "DEEPAGENTS_MODEL=${DEEPAGENTS_OPENAI_MODEL:-${DEEPAGENTS_MODEL}}"
-            ;;
         *)
             echo "e2e: unknown provider: ${provider}" >&2
             exit 1
             ;;
-    esac
-}
-
-# Align DEEPAGENTS_MODEL with docker -e behavior for default models from config.env.
-sync_deepagents_model_for_provider() {
-    local provider="$1"
-    case "${provider}" in
-        deepagents-gemini) export DEEPAGENTS_MODEL="${DEEPAGENTS_GEMINI_MODEL:-${DEEPAGENTS_MODEL}}" ;;
-        deepagents-openai) export DEEPAGENTS_MODEL="${DEEPAGENTS_OPENAI_MODEL:-${DEEPAGENTS_MODEL}}" ;;
     esac
 }
 
@@ -198,7 +170,6 @@ run_one_host() {
     if [ -n "${model_override}" ]; then
         apply_model_override "${provider}" "${model_override}"
     fi
-    sync_deepagents_model_for_provider "${provider}"
 
     if [[ -z "${E2E_SKIP_INSTALL:-}" ]]; then
         make install-all
@@ -259,7 +230,6 @@ run_one() {
     if [ -n "${model_override}" ]; then
         apply_model_override "${provider}" "${model_override}"
     fi
-    sync_deepagents_model_for_provider "${provider}"
 
     "${UV}" run --extra e2e python tests/e2e/credentials.py check "${provider}"
 
@@ -327,7 +297,7 @@ run_one() {
     "${UV}" run --extra e2e pytest -c tests/e2e/pytest.ini tests/e2e -v ${E2E_ARGS:-}
 }
 
-PROVIDERS=(claude gemini openai deepagents-claude deepagents-gemini deepagents-openai)
+PROVIDERS=(claude gemini openai)
 
 if [[ "${E2E_PROW_HOST}" == "1" ]]; then
     if [[ $# -lt 1 ]]; then

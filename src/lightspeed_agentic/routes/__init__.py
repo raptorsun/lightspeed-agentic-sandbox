@@ -27,7 +27,6 @@ def build_router(
         "claude": "ANTHROPIC_MODEL",
         "gemini": "GEMINI_MODEL",
         "openai": "OPENAI_MODEL",
-        "deepagents": "DEEPAGENTS_MODEL",
     }
     env_var = model_env_vars.get(provider.name, "ANTHROPIC_MODEL")
     resolved_model = model or os.environ.get(env_var, DEFAULT_MODEL)

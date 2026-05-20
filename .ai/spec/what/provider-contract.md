@@ -40,9 +40,9 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 17. **Thin-adapter principle.** Providers MUST delegate tool execution, command invocation, and skill discovery to their SDKs. Adapters MUST NOT implement custom tool executors that duplicate SDK behavior except for minimal glue (e.g., auto-confirm, path layout).
 
-18. **Structured output.** When `output_schema` is set: Claude uses the SDK’s JSON-schema output format; Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode disabled; Deep Agents converts the schema to a Pydantic model (object schemas with `properties`; nested objects and arrays supported per adapter rules) and passes it as structured response format.
+18. **Structured output.** When `output_schema` is set: Claude uses the SDK’s JSON-schema output format; Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode disabled.
 
-19. **Skills.** Claude discovers skills via SDK skill settings and a writable symlink layout under the effective cwd when the skill root is read-only. Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`. Deep Agents registers `cwd` in the skills list for middleware discovery.
+19. **Skills.** Claude discovers skills via SDK skill settings and a writable symlink layout under the effective cwd when the skill root is read-only. Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
 
 20. **Default allowed tools list.** Shared default names: `Bash`, `Read`, `Glob`, `Grep`, `Skill`. The HTTP route always passes this list unless a future contract exposes overrides. [PLANNED: OLS-3033]
 
@@ -63,14 +63,13 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 | `ProviderQueryOptions.*` | All option fields listed above (set by router, not raw HTTP for most fields). |
 | `GOOGLE_GENAI_USE_VERTEXAI` | Gemini: Vertex vs consumer API behavior and tool mix. |
 | `OPENAI_BASE_URL` | OpenAI-compatible API endpoint override. |
-| `GOOGLE_API_KEY`, `GEMINI_API_KEY` | Gemini / Deep Agents routing for Google models. |
-| `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION` | Deep Agents: Vertex-hosted Claude selection. |
+| `GOOGLE_API_KEY`, `GEMINI_API_KEY` | Gemini credential and routing. |
+| `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION` | Claude via Vertex (Claude agent SDK / Claude Code). |
 
 ## Constraints
 
 - Not every adapter emits `thinking_delta`; absence does not imply failure.
 - Cost fields on `result` may be zero where the SDK does not report usage or price.
-- Deep Agents structured output requires object schemas with `properties`; fields omitting `type` or arrays omitting `items` are rejected by the adapter’s schema conversion.
 
 ## Planned Changes
 

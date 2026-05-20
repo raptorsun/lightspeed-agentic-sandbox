@@ -2,7 +2,7 @@
 
 End-to-end evaluations that test the `/v1/agent/run` HTTP endpoint against live production containers — matching how the operator invokes the agent in production.
 
-> **Note:** On macOS, the eval suite runs 6 containers in parallel. Ensure the podman machine has at least 8GB: check with `podman info | grep memTotal`, resize with `podman machine set --memory 8192`.
+> **Note:** On macOS, the eval suite runs 3 containers in parallel. Ensure the podman machine has at least 8GB: check with `podman info | grep memTotal`, resize with `podman machine set --memory 8192`.
 
 ## Contents
 
@@ -20,7 +20,7 @@ End-to-end evaluations that test the `/v1/agent/run` HTTP endpoint against live 
 make eval
 ```
 
-This builds the production container image, starts 6 live servers (one per provider), runs `test_find_token_skill` against each via HTTP, and tears everything down.
+This builds the production container image, starts 3 live servers (one per provider), runs `test_find_token_skill` against each via HTTP, and tears everything down.
 
 ## How It Works
 
@@ -40,11 +40,6 @@ No prompt hacks, no begging for output format, no telling the model what command
 | `claude` | `claude-sonnet-4-6` | `ANTHROPIC_MODEL` |
 | `gemini` | `gemini-3.1-pro-preview` | `GEMINI_MODEL` |
 | `openai` | `gpt-5.4` | `OPENAI_MODEL` |
-| `deepagents-claude` | `claude-opus-4-6` | `DEEPAGENTS_MODEL` |
-| `deepagents-gemini` | `gemini-3.1-pro-preview` | `DEEPAGENTS_GEMINI_MODEL` |
-| `deepagents-openai` | `gpt-5.4` | `DEEPAGENTS_OPENAI_MODEL` |
-
-The `deepagents-*` variants run the same deepagents provider (langchain) with different LLM backends.
 
 ## Credentials
 
@@ -55,13 +50,10 @@ Providers without valid credentials are automatically skipped.
 | `claude` | `ANTHROPIC_API_KEY` | Vertex AI (`CLAUDE_CODE_USE_VERTEX=1` + gcloud ADC), Bedrock (`CLAUDE_CODE_USE_BEDROCK=1` + AWS creds) |
 | `gemini` | `GOOGLE_API_KEY` | `GEMINI_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` file, gcloud ADC |
 | `openai` | `OPENAI_API_KEY` | `OPENAI_BASE_URL` (keyless endpoints) |
-| `deepagents-claude` | Depends on model | Checks credentials matching the configured `DEEPAGENTS_MODEL` |
-| `deepagents-gemini` | Same as `gemini` | — |
-| `deepagents-openai` | Same as `openai` | — |
 
 ## Running Evals
 
-`evals/run.sh` starts 6 containers, waits for `/health`, runs pytest against them via HTTP, then tears down. Use `EVAL_ARGS` to pass pytest flags.
+`evals/run.sh` starts 3 containers, waits for `/health`, runs pytest against them via HTTP, then tears down. Use `EVAL_ARGS` to pass pytest flags.
 
 ```bash
 # All providers
@@ -102,4 +94,4 @@ evals/workspace/
 - **Tools** — bash scripts that generate random verification tokens, write them to dot-files on the shared volume, and return structured JSON. The test reads the dot-files to verify the model actually executed the script.
 - **Schemas** — JSON Schema dicts in `schemas.py`, passed as `outputSchema` to the `/run` endpoint. The provider enforces structured output using its native mechanism.
 
-Tests are parametrized across all 6 providers automatically.
+Tests are parametrized across all 3 providers automatically.

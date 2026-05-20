@@ -1,7 +1,7 @@
 # Lightspeed Agentic Sandbox
 
 Multi-provider agentic sandbox for OpenShift Lightspeed. This repo exposes a
-FastAPI app plus provider adapters for Claude, Gemini, OpenAI, and Deep Agents.
+FastAPI app plus provider adapters for Claude, Gemini, and OpenAI.
 When editing it, optimize for thin provider wrappers, consistent event mapping,
 and tests that stay offline unless you are intentionally running containerized
 evals.
@@ -108,20 +108,19 @@ src/lightspeed_agentic/
 ├── providers/
 │   ├── claude.py         # claude-agent-sdk adapter
 │   ├── gemini.py         # google-adk adapter
-│   ├── openai.py         # openai-agents adapter
-│   └── deepagents.py     # deepagents/langgraph adapter
+│   └── openai.py         # openai-agents adapter
 └── routes/
     ├── __init__.py       # build_router(...)
     ├── query.py          # POST /run endpoint
     └── models.py         # Pydantic request/response models
 ```
 
-| Feature | Claude (`claude-agent-sdk`) | Gemini (`google-adk`) | OpenAI (`openai-agents`) | Deep Agents (`deepagents`) |
-| --- | --- | --- | --- | --- |
-| Tools | Built-in SDK tools | Native `ExecuteBashTool` plus built-in web tools | Native `SandboxAgent` shell/filesystem/skills | Built-in local shell and file tools |
-| Skills | Native `skills="all"` | Native `SkillToolset` | Native `Skills` capability | Native skills middleware |
-| Structured output | `output_format` JSON schema | Native response schema path | `output_type` wrapper | `response_format` / generated Pydantic model |
-| Streaming | Partial message stream events | `StreamingMode.SSE` | `Runner.run_streamed()` | LangGraph async stream |
+| Feature | Claude (`claude-agent-sdk`) | Gemini (`google-adk`) | OpenAI (`openai-agents`) |
+| --- | --- | --- | --- |
+| Tools | Built-in SDK tools | Native `ExecuteBashTool` plus built-in web tools | Native `SandboxAgent` shell/filesystem/skills |
+| Skills | Native `skills="all"` | Native `SkillToolset` | Native `Skills` capability |
+| Structured output | `output_format` JSON schema | Native response schema path | `output_type` wrapper |
+| Streaming | Partial message stream events | `StreamingMode.SSE` | `Runner.run_streamed()` |
 
 Keep provider adapters thin. The SDK should own tool execution and skill
 discovery; shared path logic belongs in `tools.py`, not in duplicated provider
@@ -215,16 +214,15 @@ The Konflux pipeline will prefetch the new versions on the next PR.
 
 | Variable | Purpose |
 | --- | --- |
-| `LIGHTSPEED_AGENT_PROVIDER` | Default provider selected by `create_provider()` (`claude`, `gemini`, `openai`, `deepagents`) |
+| `LIGHTSPEED_AGENT_PROVIDER` | Default provider selected by `create_provider()` (`claude`, `gemini`, `openai`) |
 | `LIGHTSPEED_SKILLS_DIR` | Skills root mounted by the FastAPI app, default `/app/skills` |
 | `ANTHROPIC_MODEL` | Default Claude model for query routes |
 | `GEMINI_MODEL` | Default Gemini model for query routes |
 | `OPENAI_MODEL` | Default OpenAI model for query routes |
-| `DEEPAGENTS_MODEL` | Default Deep Agents model for query routes |
 | `OPENAI_BASE_URL` | Optional OpenAI-compatible endpoint override |
-| `CLAUDE_CODE_USE_VERTEX` | When set to `1`, Deep Agents Claude models use Vertex-backed Anthropic |
-| `ANTHROPIC_VERTEX_PROJECT_ID` | Vertex project for Claude via Deep Agents |
-| `CLOUD_ML_REGION` | Vertex region for Claude via Deep Agents (default `us-east5`) |
+| `CLAUDE_CODE_USE_VERTEX` | When set to `1`, Claude uses Vertex-backed Anthropic (Claude agent SDK / Claude Code) |
+| `ANTHROPIC_VERTEX_PROJECT_ID` | Vertex project for Claude via Vertex |
+| `CLOUD_ML_REGION` | Vertex region for Claude via Vertex (default `us-east5`) |
 | `EVAL_SERVER_URLS` | Provider-to-URL map exported by `evals/run.sh` for eval pytest fixtures |
 | `EVAL_WORKSPACES` | Provider-to-output-workspace map exported by `evals/run.sh` for eval pytest fixtures |
 

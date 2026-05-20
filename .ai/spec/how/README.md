@@ -6,7 +6,7 @@ These specs describe HOW the sandbox runtime is structured -- module boundaries,
 
 | Spec | Description |
 |------|-------------|
-| [provider-architecture.md](provider-architecture.md) | Module map, factory pattern, per-provider SDK wrappers (Claude/Gemini/OpenAI/DeepAgents), container build |
+| [provider-architecture.md](provider-architecture.md) | Module map, factory pattern, per-provider SDK wrappers (Claude/Gemini/OpenAI), container build |
 
 ## Relationship to what/ Specs
 
