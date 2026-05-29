@@ -11,6 +11,7 @@ import os
 from fastapi import FastAPI
 
 from lightspeed_agentic.factory import create_provider
+from lightspeed_agentic.health import register_health_routes
 from lightspeed_agentic.routes import build_router
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -24,7 +25,4 @@ router = build_router(
 )
 app.include_router(router, prefix="/v1/agent")
 
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+register_health_routes(app)

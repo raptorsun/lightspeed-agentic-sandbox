@@ -72,4 +72,4 @@ Cross-references: provider behavior and events → `provider-contract.md`. Env d
 - Register deprecated `/analyze`, `/execute`, `/verify` routes as aliases of `/run` or delete them from product docs once no caller uses them. [PLANNED: OLS-2914]
 - Operator payload may later include `llm` and `allowedTools` per target architecture docs; sandbox route does not read them today. [PLANNED: OLS-3033]
 - TLS, network policy, and ingress hardening for the sandbox service. [PLANNED: OLS-3038–OLS-3043]
-- Readiness beyond liveness (`/health` semantics expansion). [PLANNED: OLS-3058–OLS-3060]
+- Readiness endpoint (`GET /ready`). [PLANNED: OLS-3060]
