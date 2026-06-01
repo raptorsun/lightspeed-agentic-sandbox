@@ -48,6 +48,11 @@ RUN if [ -f /cachi2/cachi2.env ]; then \
 FROM registry.redhat.io/openshift4/ose-cli-rhel9:v4.21 AS origincli
 
 # ---------------------------------------------------------------------------
+# podman stage: provides catatonit init binary
+# ---------------------------------------------------------------------------
+FROM registry.redhat.io/ubi9/podman:9.8 AS podman
+
+# ---------------------------------------------------------------------------
 # Runtime stage: minimal image with only what the agent needs
 # ---------------------------------------------------------------------------
 FROM registry.redhat.io/rhel9/python-312:latest
@@ -58,14 +63,9 @@ WORKDIR /app
 # System packages (resolved from rpms.in.yaml via rpm prefetch).
 # Split into functional groups for readability.
 
-# EPEL repo + GPG key (tini lives in EPEL; cachi2 overrides this in hermetic builds)
-COPY epel.repo /etc/yum.repos.d/epel.repo
-COPY RPM-GPG-KEY-EPEL-9 /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-9
-RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-9
-
-# Claude Code SDK requirements + container init
+# Claude Code SDK requirements
 RUN dnf install -y --nodocs \
-    bash git wget jq tini \
+    bash git wget jq \
     && dnf clean all
 
 # SRE debugging toolkit
@@ -95,22 +95,9 @@ RUN ln -s /app/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/
 COPY --from=origincli /usr/bin/oc /usr/bin/oc
 RUN ln -s /usr/bin/oc /usr/bin/kubectl
 
-# Install generic-fetched binaries (ripgrep).
-# In hermetic builds these are at /cachi2/output/deps/generic/.
-# In non-hermetic builds fall back to fetching from the network.
-COPY artifacts.lock.yaml ./
-RUN ARCH=$(uname -m) && \
-    GENERIC_DIR="/cachi2/output/deps/generic" && \
-    if [ -d "$GENERIC_DIR" ]; then \
-        tar -xzf "$GENERIC_DIR/ripgrep-${ARCH}.tar.gz" --strip-components=1 -C /usr/local/bin --wildcards '*/rg' && \
-        chmod +x /usr/local/bin/rg; \
-    else \
-        echo "WARN: generic deps dir not found, fetching from network (non-hermetic)" && \
-        RG_ARCH=$([ "$ARCH" = "aarch64" ] && echo "aarch64-unknown-linux-gnu" || echo "x86_64-unknown-linux-musl") && \
-        curl -sL "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15.1.0-${RG_ARCH}.tar.gz" | \
-            tar -xz --strip-components=1 -C /usr/local/bin --wildcards '*/rg' && \
-        chmod +x /usr/local/bin/rg; \
-    fi
+# catatonit init binary from the podman stage
+COPY --from=podman /usr/libexec/podman/catatonit /usr/bin/catatonit
+
 
 # Copy application source and metadata
 COPY --from=builder /app/src ./src
@@ -132,7 +119,7 @@ USER 1001:1001
 
 EXPOSE 8080
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/catatonit", "--"]
 CMD ["python3.12", "-m", "uvicorn", "lightspeed_agentic.app:app", "--host", "0.0.0.0", "--port", "8080"]
 
 LABEL name="lightspeed-agentic-sandbox" \
