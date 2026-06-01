@@ -68,5 +68,4 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 ## Planned Changes
 
 - TLS termination, mTLS, and network policies for operator-to-sandbox traffic. [PLANNED: OLS-3038–OLS-3043]
-- Readiness endpoint (`GET /ready`). [PLANNED: OLS-3060]
 - Konflux pipeline and lockfile policy updates as Red Hat platform requirements evolve. [PLANNED: OLS-2894]

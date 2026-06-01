@@ -9,8 +9,8 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 | Path | Contents |
 |------|----------|
 | `src/lightspeed_agentic/__init__.py` | Re-exports `create_provider`, `EventLogger`, `AgentProvider`, event dataclasses, `ProviderQueryOptions`. |
-| `src/lightspeed_agentic/app.py` | `app: FastAPI` — constructs provider via `create_provider()`, builds router with `build_router(...)`, `include_router(..., prefix="/v1/agent")`, registers `GET /health` via `register_health_routes()`. |
-| `src/lightspeed_agentic/health.py` | `GET /health` — process liveness, no external calls. |
+| `src/lightspeed_agentic/app.py` | `app: FastAPI` — constructs provider via `create_provider()`, builds router with `build_router(...)`, `include_router(..., prefix="/v1/agent")`, registers `GET /health` and `GET /ready` via health module. |
+| `src/lightspeed_agentic/health.py` | `GET /health` liveness (no external calls) + `GET /ready` readiness (R1 credential env + R2 provider endpoint reachability per `health-probes.md`). |
 | `src/lightspeed_agentic/factory.py` | `ProviderName`, `create_provider()` — `match` on name/env, lazy-imports `ClaudeProvider`, `GeminiProvider`, `OpenAIProvider`. |
 | `src/lightspeed_agentic/types.py` | `stringify()`, truncation-related constants, event datclasses (`TextDeltaEvent`, `ThinkingDeltaEvent`, `ContentBlockStopEvent`, `ToolCallEvent`, `ToolResultEvent`, `ResultEvent`), `ProviderQueryOptions`, abstract `AgentProvider`. |
 | `src/lightspeed_agentic/tools.py` | `DEFAULT_ALLOWED_TOOLS`. |
