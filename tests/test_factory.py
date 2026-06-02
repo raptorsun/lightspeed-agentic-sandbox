@@ -12,14 +12,9 @@ def test_create_provider_unknown():
         create_provider("nonexistent")
 
 
-def test_create_provider_env_default(monkeypatch):
-    monkeypatch.delenv("LIGHTSPEED_AGENT_PROVIDER", raising=False)
-    # Claude SDK might not be installed — just verify it tries claude
-    try:
-        provider = create_provider()
-        assert provider.name == "claude"
-    except ImportError:
-        pass
+def test_create_provider_requires_name():
+    with pytest.raises(TypeError):
+        create_provider()  # type: ignore[call-arg]
 
 
 def test_create_provider_explicit_name():

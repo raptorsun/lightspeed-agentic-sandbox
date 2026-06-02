@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-import os
-from typing import Literal
-
 from lightspeed_agentic.types import AgentProvider
 
-ProviderName = Literal["claude", "gemini", "openai"]
 
-
-def create_provider(name: str | None = None) -> AgentProvider:
-    provider_name: ProviderName = name or os.environ.get("LIGHTSPEED_AGENT_PROVIDER", "claude")  # type: ignore[assignment]
-
-    match provider_name:
+def create_provider(name: str) -> AgentProvider:
+    match name:
         case "claude":
             from lightspeed_agentic.providers.claude import ClaudeProvider
 
@@ -28,5 +21,5 @@ def create_provider(name: str | None = None) -> AgentProvider:
             return OpenAIProvider()
         case _:
             raise ValueError(
-                f"Unknown provider: {provider_name}. Supported: claude, gemini, openai"
+                f"Unknown provider: {name}. Supported: claude, gemini, openai"
             )
