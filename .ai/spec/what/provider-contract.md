@@ -73,7 +73,6 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 ## Planned Changes
 
-- [OLS-3153] **Operator-sandbox env var contract**: all SDK-specific env vars are now set by the sandbox's configuration mapping layer, not by the operator. See `configuration.md` rules 1–2.
 - Parity improvements across providers (tools, streaming, structured output edge cases). [PLANNED: OLS-3047–OLS-3053]
 - BYOK and RAG integration hooks without breaking the thin-adapter rule. [PLANNED: OLS-3054–OLS-3057]
 - Align operator-passed `allowedTools` and `llm` with `ProviderQueryOptions`. [PLANNED: OLS-3033]
