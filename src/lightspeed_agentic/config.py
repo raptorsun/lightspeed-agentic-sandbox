@@ -7,6 +7,7 @@ SDK reads internally. Called once at startup before provider construction.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 
@@ -14,20 +15,47 @@ logger = logging.getLogger(__name__)
 
 LLM_CREDENTIALS_PATH = "/var/run/secrets/llm-credentials"
 
+_DEFAULT_VERTEX_REGION = "us-east5"
+_DEFAULT_BEDROCK_REGION = "us-east-1"
+
+
+@dataclasses.dataclass(frozen=True)
+class ResolvedSDK:
+    """Result of resolving LIGHTSPEED_* env vars to an SDK backend."""
+
+    name: str  # "claude", "gemini", "openai"
+    expected_envs: tuple[str, ...]  # credential env vars expected from envFrom
+    probe_url: str  # R2 reachability probe base URL
+
 
 def _setenv(key: str, value: str) -> None:
     os.environ[key] = value
 
 
-def _setenv_if(key: str, value: str | None) -> None:
+def _setenv_if_value(key: str, value: str | None) -> None:
     if value:
         _setenv(key, value)
 
 
-def _resolve_anthropic(model: str | None, url: str | None) -> str:
-    _setenv_if("ANTHROPIC_MODEL", model)
-    _setenv_if("ANTHROPIC_BASE_URL", url)
-    return "claude"
+def _vertex_probe_url(region: str | None) -> str:
+    r = region or _DEFAULT_VERTEX_REGION
+    return f"https://{r}-aiplatform.googleapis.com/"
+
+
+def _bedrock_probe_url(region: str | None) -> str:
+    r = region or _DEFAULT_BEDROCK_REGION
+    return f"https://bedrock-runtime.{r}.amazonaws.com/"
+
+
+def _resolve_anthropic(model: str | None, url: str | None) -> ResolvedSDK:
+    _setenv_if_value("ANTHROPIC_MODEL", model)
+    _setenv_if_value("ANTHROPIC_BASE_URL", url)
+    probe = url or "https://api.anthropic.com/"
+    return ResolvedSDK(
+        "claude",
+        ("ANTHROPIC_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
+        probe,
+    )
 
 
 def _resolve_vertex(
@@ -36,82 +64,107 @@ def _resolve_vertex(
     url: str | None,
     project: str | None,
     region: str | None,
-) -> str:
+) -> ResolvedSDK:
     if not model_provider:
-        raise ValueError(
-            "LIGHTSPEED_MODEL_PROVIDER is required when LIGHTSPEED_PROVIDER=vertex"
-        )
+        raise ValueError("LIGHTSPEED_MODEL_PROVIDER is required when LIGHTSPEED_PROVIDER=vertex")
+
+    vertex_probe = _vertex_probe_url(region)
 
     match model_provider:
-        case "Anthropic":
-            _setenv_if("ANTHROPIC_MODEL", model)
+        case "anthropic":
+            _setenv_if_value("ANTHROPIC_MODEL", model)
             _setenv("CLAUDE_CODE_USE_VERTEX", "1")
-            _setenv_if("ANTHROPIC_VERTEX_PROJECT_ID", project)
-            _setenv_if("CLOUD_ML_REGION", region)
+            _setenv_if_value("ANTHROPIC_VERTEX_PROJECT_ID", project)
+            _setenv_if_value("CLOUD_ML_REGION", region)
             _setenv(
                 "GOOGLE_APPLICATION_CREDENTIALS",
                 f"{LLM_CREDENTIALS_PATH}/GOOGLE_APPLICATION_CREDENTIALS",
             )
-            _setenv_if("ANTHROPIC_BASE_URL", url)
-            return "claude"
-        case "Google":
-            _setenv_if("GEMINI_MODEL", model)
+            _setenv_if_value("ANTHROPIC_BASE_URL", url)
+            return ResolvedSDK(
+                "claude",
+                ("ANTHROPIC_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
+                url or vertex_probe,
+            )
+        case "google":
+            _setenv_if_value("GEMINI_MODEL", model)
             _setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
-            _setenv_if("GOOGLE_CLOUD_PROJECT", project)
-            _setenv_if("GOOGLE_CLOUD_LOCATION", region)
+            _setenv_if_value("GOOGLE_CLOUD_PROJECT", project)
+            _setenv_if_value("GOOGLE_CLOUD_LOCATION", region)
             _setenv(
                 "GOOGLE_APPLICATION_CREDENTIALS",
                 f"{LLM_CREDENTIALS_PATH}/GOOGLE_APPLICATION_CREDENTIALS",
             )
-            return "gemini"
-        case "OpenAI":
-            _setenv_if("OPENAI_MODEL", model)
-            _setenv_if("OPENAI_BASE_URL", url)
-            return "openai"
+            return ResolvedSDK(
+                "gemini",
+                (
+                    "GOOGLE_API_KEY",
+                    "GEMINI_API_KEY",
+                    "GOOGLE_APPLICATION_CREDENTIALS",
+                ),
+                url or vertex_probe,
+            )
+        case "openai":
+            _setenv_if_value("OPENAI_MODEL", model)
+            _setenv_if_value("OPENAI_BASE_URL", url)
+            return ResolvedSDK(
+                "openai",
+                ("OPENAI_API_KEY",),
+                url or vertex_probe,
+            )
         case _:
             raise ValueError(
                 f"Unknown LIGHTSPEED_MODEL_PROVIDER: {model_provider!r}. "
-                "Supported: Anthropic, Google, OpenAI"
+                "Supported: anthropic, google, openai"
             )
 
 
-def _resolve_openai(model: str | None, url: str | None) -> str:
-    _setenv_if("OPENAI_MODEL", model)
-    _setenv_if("OPENAI_BASE_URL", url)
-    return "openai"
+def _resolve_openai(model: str | None, url: str | None) -> ResolvedSDK:
+    _setenv_if_value("OPENAI_MODEL", model)
+    _setenv_if_value("OPENAI_BASE_URL", url)
+    return ResolvedSDK(
+        "openai",
+        ("OPENAI_API_KEY",),
+        url or "https://api.openai.com/",
+    )
 
 
 def _resolve_azure(
     model: str | None,
     url: str | None,
     api_version: str | None,
-) -> str:
-    _setenv_if("OPENAI_MODEL", model)
-    _setenv_if("AZURE_OPENAI_ENDPOINT", url)
-    _setenv_if("AZURE_OPENAI_API_VERSION", api_version)
-    return "openai"
+) -> ResolvedSDK:
+    _setenv_if_value("OPENAI_MODEL", model)
+    _setenv_if_value("AZURE_OPENAI_ENDPOINT", url)
+    _setenv_if_value("AZURE_OPENAI_API_VERSION", api_version)
+    return ResolvedSDK(
+        "openai",
+        ("AZURE_OPENAI_API_KEY",),
+        url or "",
+    )
 
 
 def _resolve_bedrock(
     model: str | None,
     url: str | None,
     region: str | None,
-) -> str:
-    _setenv_if("ANTHROPIC_MODEL", model)
+) -> ResolvedSDK:
+    _setenv_if_value("ANTHROPIC_MODEL", model)
     _setenv("CLAUDE_CODE_USE_BEDROCK", "1")
-    _setenv_if("AWS_REGION", region)
-    _setenv_if("ANTHROPIC_BASE_URL", url)
-    return "claude"
+    _setenv_if_value("AWS_REGION", region)
+    _setenv_if_value("ANTHROPIC_BASE_URL", url)
+    return ResolvedSDK(
+        "claude",
+        ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
+        url or _bedrock_probe_url(region),
+    )
 
 
-def resolve_sdk() -> str:
-    """Read LIGHTSPEED_* env vars, set SDK-specific env vars, return SDK name.
-
-    Returns one of: "claude", "gemini", "openai".
-    """
+def resolve_sdk() -> ResolvedSDK:
+    """Read LIGHTSPEED_* env vars, set SDK-specific env vars, return resolved SDK."""
     provider = os.environ.get("LIGHTSPEED_PROVIDER", "").strip().lower() or "anthropic"
     model = os.environ.get("LIGHTSPEED_MODEL", "").strip() or None
-    model_provider = os.environ.get("LIGHTSPEED_MODEL_PROVIDER", "").strip() or None
+    model_provider = os.environ.get("LIGHTSPEED_MODEL_PROVIDER", "").strip().lower() or None
     url = os.environ.get("LIGHTSPEED_PROVIDER_URL", "").strip() or None
     project = os.environ.get("LIGHTSPEED_PROVIDER_PROJECT", "").strip() or None
     region = os.environ.get("LIGHTSPEED_PROVIDER_REGION", "").strip() or None
@@ -134,5 +187,5 @@ def resolve_sdk() -> str:
                 "Supported: anthropic, vertex, openai, azure, bedrock"
             )
 
-    logger.info("Resolved LIGHTSPEED_PROVIDER=%s → SDK=%s", provider, sdk)
+    logger.info("Resolved LIGHTSPEED_PROVIDER=%s → SDK=%s", provider, sdk.name)
     return sdk

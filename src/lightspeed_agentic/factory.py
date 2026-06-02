@@ -20,6 +20,4 @@ def create_provider(name: str) -> AgentProvider:
 
             return OpenAIProvider()
         case _:
-            raise ValueError(
-                f"Unknown provider: {name}. Supported: claude, gemini, openai"
-            )
+            raise ValueError(f"Unknown provider: {name}. Supported: claude, gemini, openai")

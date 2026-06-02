@@ -55,7 +55,8 @@ def test_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk == "claude"
+    assert sdk.name == "claude"
+    assert sdk.probe_url == "https://api.anthropic.com/"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
 
 
@@ -73,14 +74,14 @@ def test_anthropic_with_url(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_vertex_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
     _clean_env(monkeypatch)
     monkeypatch.setenv("LIGHTSPEED_PROVIDER", "vertex")
-    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "Anthropic")
+    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "anthropic")
     monkeypatch.setenv("LIGHTSPEED_MODEL", "claude-sonnet-4-20250514")
     monkeypatch.setenv("LIGHTSPEED_PROVIDER_PROJECT", "my-project")
     monkeypatch.setenv("LIGHTSPEED_PROVIDER_REGION", "us-east5")
 
     sdk = resolve_sdk()
 
-    assert sdk == "claude"
+    assert sdk.name == "claude"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
     assert os.environ["CLAUDE_CODE_USE_VERTEX"] == "1"
     assert os.environ["ANTHROPIC_VERTEX_PROJECT_ID"] == "my-project"
@@ -88,19 +89,20 @@ def test_vertex_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
     assert os.environ["GOOGLE_APPLICATION_CREDENTIALS"] == (
         "/var/run/secrets/llm-credentials/GOOGLE_APPLICATION_CREDENTIALS"
     )
+    assert sdk.probe_url == "https://us-east5-aiplatform.googleapis.com/"
 
 
 def test_vertex_google(monkeypatch: pytest.MonkeyPatch) -> None:
     _clean_env(monkeypatch)
     monkeypatch.setenv("LIGHTSPEED_PROVIDER", "vertex")
-    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "Google")
+    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "google")
     monkeypatch.setenv("LIGHTSPEED_MODEL", "gemini-2.5-flash")
     monkeypatch.setenv("LIGHTSPEED_PROVIDER_PROJECT", "my-project")
     monkeypatch.setenv("LIGHTSPEED_PROVIDER_REGION", "us-central1")
 
     sdk = resolve_sdk()
 
-    assert sdk == "gemini"
+    assert sdk.name == "gemini"
     assert os.environ["GEMINI_MODEL"] == "gemini-2.5-flash"
     assert os.environ["GOOGLE_GENAI_USE_VERTEXAI"] == "true"
     assert os.environ["GOOGLE_CLOUD_PROJECT"] == "my-project"
@@ -113,13 +115,13 @@ def test_vertex_google(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_vertex_openai(monkeypatch: pytest.MonkeyPatch) -> None:
     _clean_env(monkeypatch)
     monkeypatch.setenv("LIGHTSPEED_PROVIDER", "vertex")
-    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "OpenAI")
+    monkeypatch.setenv("LIGHTSPEED_MODEL_PROVIDER", "openai")
     monkeypatch.setenv("LIGHTSPEED_MODEL", "gpt-4.1")
     monkeypatch.setenv("LIGHTSPEED_PROVIDER_URL", "https://vertex-openai.example.com")
 
     sdk = resolve_sdk()
 
-    assert sdk == "openai"
+    assert sdk.name == "openai"
     assert os.environ["OPENAI_MODEL"] == "gpt-4.1"
     assert os.environ["OPENAI_BASE_URL"] == "https://vertex-openai.example.com"
 
@@ -131,7 +133,7 @@ def test_openai(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk == "openai"
+    assert sdk.name == "openai"
     assert os.environ["OPENAI_MODEL"] == "gpt-4.1"
 
 
@@ -155,7 +157,7 @@ def test_azure(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk == "openai"
+    assert sdk.name == "openai"
     assert os.environ["OPENAI_MODEL"] == "gpt-4.1"
     assert os.environ["AZURE_OPENAI_ENDPOINT"] == "https://my-resource.openai.azure.com"
     assert os.environ["AZURE_OPENAI_API_VERSION"] == "2024-08-01-preview"
@@ -169,7 +171,7 @@ def test_bedrock(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk == "claude"
+    assert sdk.name == "claude"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
     assert os.environ["CLAUDE_CODE_USE_BEDROCK"] == "1"
     assert os.environ["AWS_REGION"] == "us-east-1"
@@ -180,7 +182,7 @@ def test_default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk == "claude"
+    assert sdk.name == "claude"
 
 
 def test_default_model_not_set(monkeypatch: pytest.MonkeyPatch) -> None:

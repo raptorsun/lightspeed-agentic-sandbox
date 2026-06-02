@@ -19,8 +19,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 app = FastAPI(title="lightspeed-agentic-sandbox")
 
-sdk_name = resolve_sdk()
-provider = create_provider(sdk_name)
+sdk = resolve_sdk()
+provider = create_provider(sdk.name)
 router = build_router(
     provider,
     skills_dir=os.environ.get("LIGHTSPEED_SKILLS_DIR", "/app/skills"),
@@ -28,4 +28,4 @@ router = build_router(
 app.include_router(router, prefix="/v1/agent")
 
 register_health_routes(app)
-register_ready_route(app, sdk_name=sdk_name)
+register_ready_route(app, sdk=sdk)
