@@ -53,7 +53,7 @@ def _resolve_anthropic(model: str | None, url: str | None) -> ResolvedSDK:
     probe = url or "https://api.anthropic.com/"
     return ResolvedSDK(
         "claude",
-        ("ANTHROPIC_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
+        ("ANTHROPIC_API_KEY",),
         probe,
     )
 
@@ -83,7 +83,7 @@ def _resolve_vertex(
             _setenv_if_value("ANTHROPIC_BASE_URL", url)
             return ResolvedSDK(
                 "claude",
-                ("ANTHROPIC_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
+                ("GOOGLE_APPLICATION_CREDENTIALS",),
                 url or vertex_probe,
             )
         case "google":
@@ -97,11 +97,7 @@ def _resolve_vertex(
             )
             return ResolvedSDK(
                 "gemini",
-                (
-                    "GOOGLE_API_KEY",
-                    "GEMINI_API_KEY",
-                    "GOOGLE_APPLICATION_CREDENTIALS",
-                ),
+                ("GOOGLE_APPLICATION_CREDENTIALS",),
                 url or vertex_probe,
             )
         case "openai":
@@ -109,7 +105,7 @@ def _resolve_vertex(
             _setenv_if_value("OPENAI_BASE_URL", url)
             return ResolvedSDK(
                 "openai",
-                ("OPENAI_API_KEY",),
+                ("GOOGLE_APPLICATION_CREDENTIALS",),
                 url or vertex_probe,
             )
         case _:

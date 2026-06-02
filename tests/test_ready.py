@@ -18,57 +18,92 @@ from lightspeed_agentic.health import (
     run_readiness_checks,
 )
 
-_CLAUDE_SDK = ResolvedSDK(
+_ANTHROPIC_DIRECT = ResolvedSDK(
     "claude",
-    ("ANTHROPIC_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
+    ("ANTHROPIC_API_KEY",),
     "https://api.anthropic.com/",
 )
 
-_GEMINI_SDK = ResolvedSDK(
-    "gemini",
-    ("GOOGLE_API_KEY", "GEMINI_API_KEY", "GOOGLE_APPLICATION_CREDENTIALS"),
-    "https://generativelanguage.googleapis.com/",
+_VERTEX_ANTHROPIC = ResolvedSDK(
+    "claude",
+    ("GOOGLE_APPLICATION_CREDENTIALS",),
+    "https://us-east5-aiplatform.googleapis.com/",
 )
 
-_OPENAI_SDK = ResolvedSDK(
+_VERTEX_GOOGLE = ResolvedSDK(
+    "gemini",
+    ("GOOGLE_APPLICATION_CREDENTIALS",),
+    "https://us-central1-aiplatform.googleapis.com/",
+)
+
+_OPENAI_DIRECT = ResolvedSDK(
     "openai",
     ("OPENAI_API_KEY",),
     "https://api.openai.com/",
 )
 
 
-def test_check_provider_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    assert "error: missing" in check_provider_env(_CLAUDE_SDK.expected_envs)
+# --- R1: credential env checks ---
 
 
-def test_check_provider_env_present(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_provider_env_anthropic_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    assert check_provider_env(_CLAUDE_SDK.expected_envs) == "ok"
+    assert check_provider_env(_ANTHROPIC_DIRECT.expected_envs) == "ok"
 
 
-def test_check_provider_env_claude_vertex_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_provider_env_anthropic_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/secrets/google/credentials.json")
-    assert check_provider_env(_CLAUDE_SDK.expected_envs) == "ok"
+    assert "error: missing" in check_provider_env(_ANTHROPIC_DIRECT.expected_envs)
 
 
-def test_check_provider_env_gemini_vertex_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/secrets/google/credentials.json")
-    assert check_provider_env(_GEMINI_SDK.expected_envs) == "ok"
+def test_check_provider_env_anthropic_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct Anthropic with only GOOGLE_APPLICATION_CREDENTIALS must fail."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/some/path")
+    assert "error: missing" in check_provider_env(_ANTHROPIC_DIRECT.expected_envs)
 
 
-def test_check_provider_env_gemini_either_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+def test_check_provider_env_vertex_anthropic_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/run/secrets/llm-credentials/GOOGLE_APPLICATION_CREDENTIALS")
+    assert check_provider_env(_VERTEX_ANTHROPIC.expected_envs) == "ok"
+
+
+def test_check_provider_env_vertex_anthropic_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Vertex/Anthropic with only ANTHROPIC_API_KEY must fail."""
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    assert "error: missing" in check_provider_env(_GEMINI_SDK.expected_envs)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    assert "error: missing" in check_provider_env(_VERTEX_ANTHROPIC.expected_envs)
 
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    assert check_provider_env(_GEMINI_SDK.expected_envs) == "ok"
+
+def test_check_provider_env_vertex_google_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/run/secrets/llm-credentials/GOOGLE_APPLICATION_CREDENTIALS")
+    assert check_provider_env(_VERTEX_GOOGLE.expected_envs) == "ok"
+
+
+def test_check_provider_env_vertex_google_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Vertex/Google with only GOOGLE_API_KEY must fail."""
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    assert "error: missing" in check_provider_env(_VERTEX_GOOGLE.expected_envs)
+
+
+def test_check_provider_env_openai_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    assert check_provider_env(_OPENAI_DIRECT.expected_envs) == "ok"
+
+
+def test_check_provider_env_openai_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert "error: missing" in check_provider_env(_OPENAI_DIRECT.expected_envs)
+
+
+# --- R2: endpoint reachability ---
 
 
 def test_probe_provider_endpoint_http_error_is_ok() -> None:
@@ -93,17 +128,12 @@ def test_check_provider_endpoint_uses_probe_url() -> None:
 
 
 def test_check_provider_endpoint_vertex_url() -> None:
-    vertex = ResolvedSDK(
-        "claude",
-        ("GOOGLE_APPLICATION_CREDENTIALS",),
-        "https://europe-west4-aiplatform.googleapis.com/",
-    )
     with patch(
         "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
     ) as mock_probe:
-        assert check_provider_endpoint(vertex.probe_url) == "ok"
-    mock_probe.assert_called_once_with("https://europe-west4-aiplatform.googleapis.com/")
+        assert check_provider_endpoint(_VERTEX_ANTHROPIC.probe_url) == "ok"
+    mock_probe.assert_called_once_with("https://us-east5-aiplatform.googleapis.com/")
 
 
 def test_check_provider_endpoint_empty_url() -> None:
@@ -111,11 +141,14 @@ def test_check_provider_endpoint_empty_url() -> None:
     assert check_provider_endpoint(empty.probe_url) == "error: empty probe URL"
 
 
+# --- Full readiness route ---
+
+
 @pytest.mark.asyncio
 async def test_ready_route_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     app = FastAPI()
-    register_ready_route(app, sdk=_CLAUDE_SDK)
+    register_ready_route(app, sdk=_ANTHROPIC_DIRECT)
     with patch(
         "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
@@ -129,9 +162,8 @@ async def test_ready_route_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_ready_route_provider_env_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
     app = FastAPI()
-    register_ready_route(app, sdk=_CLAUDE_SDK)
+    register_ready_route(app, sdk=_ANTHROPIC_DIRECT)
     with patch(
         "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
@@ -148,6 +180,6 @@ async def test_ready_route_provider_env_fails(monkeypatch: pytest.MonkeyPatch) -
 def test_run_readiness_checks_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "k")
     with patch("lightspeed_agentic.health.probe_provider_endpoint", return_value="ok"):
-        ok, checks = run_readiness_checks(_OPENAI_SDK)
+        ok, checks = run_readiness_checks(_OPENAI_DIRECT)
     assert ok is True
     assert checks == {"provider_env": "ok", "provider_endpoint": "ok"}
