@@ -103,6 +103,6 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
 ## Planned Changes
 
-- [OLS-3153] **Operator-sandbox env var contract**: generic `LIGHTSPEED_*` env vars replace SDK-specific env vars set by operator. Sandbox handles all SDK-specific mapping via configuration mapping (rule 2).
+- [OLS-3153] ~~IMPLEMENTED~~ Operator-sandbox env var contract: generic `LIGHTSPEED_*` env vars replace SDK-specific env vars. Sandbox handles all SDK-specific mapping via `config.py:resolve_sdk()` (rule 2).
 - TLS termination, mTLS, and network policies for operator-to-sandbox traffic. [PLANNED: OLS-3038–OLS-3043]
 - Konflux pipeline and lockfile policy updates as Red Hat platform requirements evolve. [PLANNED: OLS-2894]
