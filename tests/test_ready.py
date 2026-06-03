@@ -9,6 +9,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from lightspeed_agentic.config import ResolvedSDK
 from lightspeed_agentic.health import (
     check_provider_endpoint,
     check_provider_env,
@@ -17,54 +18,119 @@ from lightspeed_agentic.health import (
     run_readiness_checks,
 )
 
+_ANTHROPIC_DIRECT = ResolvedSDK(
+    "claude",
+    ("ANTHROPIC_API_KEY",),
+    "https://api.anthropic.com/",
+)
 
-def test_check_provider_env_provider_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("LIGHTSPEED_AGENT_PROVIDER", raising=False)
-    assert check_provider_env() == "error: LIGHTSPEED_AGENT_PROVIDER not set"
-    assert check_provider_endpoint() == "error: LIGHTSPEED_AGENT_PROVIDER not set"
+_VERTEX_ANTHROPIC = ResolvedSDK(
+    "claude",
+    ("GOOGLE_APPLICATION_CREDENTIALS",),
+    "https://us-east5-aiplatform.googleapis.com/",
+)
+
+_VERTEX_GOOGLE = ResolvedSDK(
+    "gemini",
+    ("GOOGLE_APPLICATION_CREDENTIALS",),
+    "https://us-central1-aiplatform.googleapis.com/",
+)
+
+_OPENAI_DIRECT = ResolvedSDK(
+    "openai",
+    ("OPENAI_API_KEY",),
+    "https://api.openai.com/",
+)
+
+_BEDROCK = ResolvedSDK(
+    "claude",
+    ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
+    "https://bedrock-runtime.us-east-1.amazonaws.com/",
+)
 
 
-def test_check_provider_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-    assert "error: missing" in check_provider_env()
+# --- R1: credential env checks ---
 
 
-def test_check_provider_env_present(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
+def test_check_provider_env_anthropic_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
-    assert check_provider_env() == "ok"
+    assert check_provider_env(_ANTHROPIC_DIRECT.expected_envs) == "ok"
 
 
-def test_check_provider_env_claude_vertex_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
+def test_check_provider_env_anthropic_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/secrets/google/credentials.json")
-    assert check_provider_env() == "ok"
+    assert "error: missing" in check_provider_env(_ANTHROPIC_DIRECT.expected_envs)
 
 
-def test_check_provider_env_gemini_vertex_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "gemini")
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/var/secrets/google/credentials.json")
-    assert check_provider_env() == "ok"
+def test_check_provider_env_anthropic_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Direct Anthropic with only GOOGLE_APPLICATION_CREDENTIALS must fail."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/some/path")
+    assert "error: missing" in check_provider_env(_ANTHROPIC_DIRECT.expected_envs)
 
 
-def test_check_provider_env_gemini_either_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "gemini")
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    assert "error: missing" in check_provider_env()
-
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    assert check_provider_env() == "ok"
+def test_check_provider_env_vertex_anthropic_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "/var/run/secrets/llm-credentials/GOOGLE_APPLICATION_CREDENTIALS",
+    )
+    assert check_provider_env(_VERTEX_ANTHROPIC.expected_envs) == "ok"
 
 
-def test_check_provider_env_unknown_provider(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "watsonx")
-    assert "unknown provider" in check_provider_env()
+def test_check_provider_env_vertex_anthropic_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Vertex/Anthropic with only ANTHROPIC_API_KEY must fail."""
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    assert "error: missing" in check_provider_env(_VERTEX_ANTHROPIC.expected_envs)
+
+
+def test_check_provider_env_vertex_google_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "/var/run/secrets/llm-credentials/GOOGLE_APPLICATION_CREDENTIALS",
+    )
+    assert check_provider_env(_VERTEX_GOOGLE.expected_envs) == "ok"
+
+
+def test_check_provider_env_vertex_google_wrong_cred_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Vertex/Google with only GOOGLE_API_KEY must fail."""
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    assert "error: missing" in check_provider_env(_VERTEX_GOOGLE.expected_envs)
+
+
+def test_check_provider_env_openai_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    assert check_provider_env(_OPENAI_DIRECT.expected_envs) == "ok"
+
+
+def test_check_provider_env_openai_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert "error: missing" in check_provider_env(_OPENAI_DIRECT.expected_envs)
+
+
+def test_check_provider_env_bedrock_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIA...")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    assert check_provider_env(_BEDROCK.expected_envs) == "ok"
+
+
+def test_check_provider_env_bedrock_partial_rejects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bedrock with only one of the two required AWS vars must fail."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIA...")
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+    assert "error: missing" in check_provider_env(_BEDROCK.expected_envs)
+
+
+# --- R2: endpoint reachability ---
 
 
 def test_probe_provider_endpoint_http_error_is_ok() -> None:
@@ -78,63 +144,40 @@ def test_probe_provider_endpoint_connection_error() -> None:
     assert result.startswith("error: ")
 
 
-def test_check_provider_endpoint_openai_base_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "openai")
-    monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.example/v1")
+def test_check_provider_endpoint_uses_probe_url() -> None:
+    custom = ResolvedSDK("openai", ("OPENAI_API_KEY",), "https://custom.example/v1")
     with patch(
         "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
     ) as mock_probe:
-        assert check_provider_endpoint() == "ok"
+        assert check_provider_endpoint(custom.probe_url) == "ok"
     mock_probe.assert_called_once_with("https://custom.example/v1")
 
 
-def test_check_provider_endpoint_claude_vertex(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
-    monkeypatch.setenv("CLAUDE_CODE_USE_VERTEX", "1")
-    monkeypatch.setenv("CLOUD_ML_REGION", "europe-west4")
+def test_check_provider_endpoint_vertex_url() -> None:
     with patch(
         "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
     ) as mock_probe:
-        assert check_provider_endpoint() == "ok"
-    mock_probe.assert_called_once_with("https://europe-west4-aiplatform.googleapis.com/")
-
-
-def test_check_provider_endpoint_claude_vertex_default_region(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
-    monkeypatch.setenv("CLAUDE_CODE_USE_VERTEX", "1")
-    monkeypatch.delenv("CLOUD_ML_REGION", raising=False)
-    with patch(
-        "lightspeed_agentic.health.probe_provider_endpoint",
-        return_value="ok",
-    ) as mock_probe:
-        assert check_provider_endpoint() == "ok"
+        assert check_provider_endpoint(_VERTEX_ANTHROPIC.probe_url) == "ok"
     mock_probe.assert_called_once_with("https://us-east5-aiplatform.googleapis.com/")
 
 
-def test_check_provider_endpoint_gemini_vertex(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "gemini")
-    monkeypatch.setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
-    monkeypatch.setenv("CLOUD_ML_REGION", "us-central1")
-    with patch(
-        "lightspeed_agentic.health.probe_provider_endpoint",
-        return_value="ok",
-    ) as mock_probe:
-        assert check_provider_endpoint() == "ok"
-    mock_probe.assert_called_once_with("https://us-central1-aiplatform.googleapis.com/")
+def test_check_provider_endpoint_empty_url() -> None:
+    empty = ResolvedSDK("openai", ("OPENAI_API_KEY",), "")
+    assert check_provider_endpoint(empty.probe_url) == "error: empty probe URL"
+
+
+# --- Full readiness route ---
 
 
 @pytest.mark.asyncio
 async def test_ready_route_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     app = FastAPI()
-    register_ready_route(app)
+    register_ready_route(app, sdk=_ANTHROPIC_DIRECT)
     with patch(
-        "lightspeed_agentic.health.check_provider_endpoint",
+        "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -145,12 +188,11 @@ async def test_ready_route_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_ready_route_provider_env_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "claude")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     app = FastAPI()
-    register_ready_route(app)
+    register_ready_route(app, sdk=_ANTHROPIC_DIRECT)
     with patch(
-        "lightspeed_agentic.health.check_provider_endpoint",
+        "lightspeed_agentic.health.probe_provider_endpoint",
         return_value="ok",
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -163,12 +205,8 @@ async def test_ready_route_provider_env_fails(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_run_readiness_checks_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("LIGHTSPEED_AGENT_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "k")
-    with (
-        patch("lightspeed_agentic.health.check_provider_env", return_value="ok"),
-        patch("lightspeed_agentic.health.check_provider_endpoint", return_value="ok"),
-    ):
-        ok, checks = run_readiness_checks()
+    with patch("lightspeed_agentic.health.probe_provider_endpoint", return_value="ok"):
+        ok, checks = run_readiness_checks(_OPENAI_DIRECT)
     assert ok is True
     assert checks == {"provider_env": "ok", "provider_endpoint": "ok"}
