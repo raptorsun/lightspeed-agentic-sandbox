@@ -10,7 +10,7 @@ Cross-references: provider behavior and events → `provider-contract.md`. Env d
 
 2. **Route mounting.** Agent routes are mounted under the path prefix `/v1/agent` on the FastAPI application. Probe routes (`/health`, `/ready`) are **not** under that prefix.
 
-3. **Canonical run endpoint.** `POST /v1/agent/run` accepts `RunRequest` and returns `RunResponse`. This is the only agent query endpoint; legacy `/analyze`, `/execute`, and `/verify` paths are not supported.
+3. **Canonical run endpoint.** `POST /v1/agent/run` accepts `RunRequest` and returns `RunResponse`.
 
 4. **RunRequest — `query` (required).** User task text. When `context` is present, the handler prepends a formatted context block to this text before sending the combined string to the provider (see rules 12–16).
 
