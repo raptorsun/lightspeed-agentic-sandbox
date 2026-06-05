@@ -1,0 +1,89 @@
+# IntegrationTestScenario resources for Konflux (appstudio.redhat.com/v1beta2).
+# Apply to crt-nshift-lightspeed-tenant. Each scenario triggers the shared
+# sandbox-integration-test-pipeline with provider-specific credentials.
+#
+# These replace the Prow e2e-claude, e2e-gemini, and e2e-openai presubmit jobs.
+---
+apiVersion: appstudio.redhat.com/v1beta2
+kind: IntegrationTestScenario
+metadata:
+  name: sandbox-integration-claude
+  namespace: crt-nshift-lightspeed-tenant
+  labels:
+    test.appstudio.openshift.io/optional: "true"
+spec:
+  application: ols
+  contexts:
+    - description: Sandbox integration test — Claude (Vertex)
+      name: component_lightspeed-agentic-sandbox
+  params:
+    - name: provider
+      value: claude
+    - name: credential-secret
+      value: vertex-apitoken
+  resolverRef:
+    resolver: git
+    resourceKind: pipeline
+    params:
+      - name: url
+        value: https://github.com/openshift/lightspeed-agentic-sandbox
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: .tekton/integration-tests/pipelines/sandbox-integration-test-pipeline.yaml
+---
+apiVersion: appstudio.redhat.com/v1beta2
+kind: IntegrationTestScenario
+metadata:
+  name: sandbox-integration-gemini
+  namespace: crt-nshift-lightspeed-tenant
+  labels:
+    test.appstudio.openshift.io/optional: "true"
+spec:
+  application: ols
+  contexts:
+    - description: Sandbox integration test — Gemini (Vertex)
+      name: component_lightspeed-agentic-sandbox
+  params:
+    - name: provider
+      value: gemini
+    - name: credential-secret
+      value: vertex-apitoken
+  resolverRef:
+    resolver: git
+    resourceKind: pipeline
+    params:
+      - name: url
+        value: https://github.com/openshift/lightspeed-agentic-sandbox
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: .tekton/integration-tests/pipelines/sandbox-integration-test-pipeline.yaml
+---
+apiVersion: appstudio.redhat.com/v1beta2
+kind: IntegrationTestScenario
+metadata:
+  name: sandbox-integration-openai
+  namespace: crt-nshift-lightspeed-tenant
+  labels:
+    test.appstudio.openshift.io/optional: "true"
+spec:
+  application: ols
+  contexts:
+    - description: Sandbox integration test — OpenAI
+      name: component_lightspeed-agentic-sandbox
+  params:
+    - name: provider
+      value: openai
+    - name: credential-secret
+      value: openai
+  resolverRef:
+    resolver: git
+    resourceKind: pipeline
+    params:
+      - name: url
+        value: https://github.com/openshift/lightspeed-agentic-sandbox
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: .tekton/integration-tests/pipelines/sandbox-integration-test-pipeline.yaml

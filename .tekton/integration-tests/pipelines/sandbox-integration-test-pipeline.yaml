@@ -1,5 +1,5 @@
 ---
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: sandbox-integration-test-pipeline
@@ -29,21 +29,33 @@ spec:
           value: $(params.SNAPSHOT)
         - name: provider
           value: $(params.provider)
+        - name: credential-secret
+          value: $(params.credential-secret)
       taskSpec:
         params:
           - name: SNAPSHOT
           - name: provider
             type: string
+          - name: credential-secret
         volumes:
           - name: credential
             secret:
               secretName: $(params.credential-secret)
+          - name: trusted-ca
+            configMap:
+              name: trusted-ca
+              items:
+                - key: ca-bundle.crt
+                  path: tls-ca-bundle.pem
         steps:
           - name: run-tests
             image: registry.access.redhat.com/ubi9/python-312:latest
             volumeMounts:
               - name: credential
                 mountPath: /var/run/credentials
+              - name: trusted-ca
+                mountPath: /etc/pki/ca-trust/extracted/pem
+                readOnly: true
             env:
               - name: SNAPSHOT
                 value: $(params.SNAPSHOT)
@@ -51,22 +63,35 @@ spec:
                 value: $(params.provider)
               - name: ARTIFACT_DIR
                 value: "/workspace/artifacts"
-            resources:
+              - name: REQUESTS_CA_BUNDLE
+                value: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+              - name: SSL_CERT_FILE
+                value: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+            computeResources:
               requests:
                 cpu: '1'
                 memory: 1Gi
               limits:
+                cpu: '2'
                 memory: 4Gi
             script: |
               #!/usr/bin/env bash
               set -euo pipefail
+              trap 'echo "error: pipeline step line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
 
               # --- Parse SNAPSHOT for sandbox component revision ---
               REVISION=$(echo "${SNAPSHOT}" | python3 -c "
               import json, sys
-              snap = json.load(sys.stdin)
-              comp = [c for c in snap['components'] if c['name'] == 'lightspeed-agentic-sandbox'][0]
-              print(comp['source']['git']['revision'])
+              try:
+                  snap = json.load(sys.stdin)
+                  matches = [c for c in snap['components'] if c['name'] == 'lightspeed-agentic-sandbox']
+                  if not matches:
+                      print('error: SNAPSHOT has no component named lightspeed-agentic-sandbox', file=sys.stderr)
+                      sys.exit(1)
+                  print(matches[0]['source']['git']['revision'])
+              except (json.JSONDecodeError, KeyError, TypeError) as e:
+                  print(f'error: failed to parse SNAPSHOT: {e}', file=sys.stderr)
+                  sys.exit(1)
               ")
               echo "Cloning lightspeed-agentic-sandbox@${REVISION}"
 

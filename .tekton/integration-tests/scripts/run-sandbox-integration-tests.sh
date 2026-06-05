@@ -13,6 +13,7 @@
 #   - Working directory is the sandbox repo root
 
 set -euo pipefail
+trap 'echo "error: $0 line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
 
 PROVIDER="${1:?Usage: $0 <provider> (claude|gemini|openai)}"
 CRED_PATH="/var/run/credentials/token"
@@ -36,6 +37,8 @@ case "${PROVIDER}" in
     mkdir -p "${HOME}/.config/gcloud"
     cp "${CRED_PATH}" "${HOME}/.config/gcloud/application_default_credentials.json"
     export GOOGLE_APPLICATION_CREDENTIALS="${CRED_PATH}"
+    GOOGLE_CLOUD_PROJECT=$(python3 -c "import json; print(json.load(open('${CRED_PATH}'))['project_id'])")
+    export GOOGLE_CLOUD_PROJECT
     ;;
   openai)
     OPENAI_API_KEY=$(cat "${CRED_PATH}")
@@ -48,12 +51,26 @@ case "${PROVIDER}" in
 esac
 
 # --- Install uv if not present ---
+UV_VERSION="0.11.19"
 if ! command -v uv >/dev/null 2>&1; then
-    pip install --quiet uv
+    max_attempts=3
+    delay=5
+    for attempt in $(seq 1 "${max_attempts}"); do
+        if pip install --quiet "uv==${UV_VERSION}"; then
+            break
+        fi
+        if [ "${attempt}" -eq "${max_attempts}" ]; then
+            echo "error: failed to install uv==${UV_VERSION} after ${max_attempts} attempts" >&2
+            exit 1
+        fi
+        echo "warning: pip install attempt ${attempt}/${max_attempts} failed, retrying in ${delay}s..." >&2
+        sleep "${delay}"
+        delay=$((delay * 2))
+    done
 fi
-
 # --- Run BDD tests in host mode ---
 ARTIFACT_DIR="${ARTIFACT_DIR:-/workspace/artifacts}"
 mkdir -p "${ARTIFACT_DIR}"
 export E2E_ARGS="--junitxml=${ARTIFACT_DIR}/junit_e2e.xml --tb=short"
+echo "runner: credentials configured for ${PROVIDER}, starting e2e"
 E2E_PROW_HOST=1 bash scripts/e2e-containers.sh "${PROVIDER}"
