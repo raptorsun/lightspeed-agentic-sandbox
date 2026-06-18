@@ -57,12 +57,15 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-## Behavioral Specs
+## Specs
 
-Before changing code, read the relevant spec in `.ai/spec/`:
+All specifications live in `.ai/spec/`. Start with [`.ai/spec/README.md`](.ai/spec/README.md) for project overview, reading order, and structure guide. Human-readable architecture overview: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+Before changing code, read the relevant spec:
 
 | Working on | Read |
 |---|---|
+| System overview, integration boundaries | [system-overview.md](.ai/spec/what/system-overview.md) |
 | Provider adapters | [provider-contract.md](.ai/spec/what/provider-contract.md) |
 | /run endpoint | [run-api.md](.ai/spec/what/run-api.md) |
 | Health probes | [health-probes.md](.ai/spec/what/health-probes.md) |
@@ -177,7 +180,7 @@ starts, with no network access during the build itself.
 | `rpms.in.yaml` | System RPM package list | Edit manually |
 | `rpms.lock.yaml` | Resolved RPM lockfile | `make rpm-lockfile` |
 | `ubi.repo` | UBI 9 repo definitions for RPM resolution | Rarely changes |
-| `artifacts.lock.yaml` | External binaries (oc, ripgrep, dumb-init) | Edit manually, update checksums |
+| `artifacts.lock.yaml` | External binaries (oc, ripgrep) | Edit manually, update checksums |
 | `package.json` / `package-lock.json` | npm deps (claude-code CLI) | `npm install --package-lock-only` |
 
 ### Bumping dependencies
