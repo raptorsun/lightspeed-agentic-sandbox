@@ -19,6 +19,7 @@
 # before any container starts.
 
 set -euo pipefail
+trap 'echo "error: $0 line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
@@ -40,7 +41,7 @@ _e2e_trim() {
     printf '%s' "${s}"
 }
 
-RUNTIME="${CONTAINER_RUNTIME:-$(command -v podman 2>/dev/null || command -v docker 2>/dev/null)}"
+RUNTIME="${CONTAINER_RUNTIME:-$(command -v podman 2>/dev/null || command -v docker 2>/dev/null || true)}"
 RUNTIME="$(_e2e_trim "${RUNTIME}")"
 UV="${UV:-uv}"
 PORT="${E2E_PORT:-18080}"

@@ -1,0 +1,109 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: sandbox-integration-test-pipeline
+spec:
+  description: |
+    Runs sandbox BDD integration tests for a single LLM provider in host mode.
+    Clones the sandbox repo at the SNAPSHOT revision, then delegates to
+    .tekton/integration-tests/scripts/run-sandbox-integration-tests.sh.
+
+    Triggered per-provider by IntegrationTestScenario CRs:
+      sandbox-integration-claude, sandbox-integration-gemini, sandbox-integration-openai.
+  params:
+    - name: SNAPSHOT
+      description: 'The JSON string representing the snapshot of the application under test.'
+      default: '{"components": [{"name":"lightspeed-agentic-sandbox", "containerImage": "quay.io/example/repo:latest"}]}'
+      type: string
+    - name: provider
+      description: 'LLM provider to test (claude, gemini, openai).'
+      type: string
+    - name: credential-secret
+      description: 'Name of the Konflux workspace secret containing provider credentials.'
+      type: string
+  tasks:
+    - name: run-integration-test
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+        - name: provider
+          value: $(params.provider)
+        - name: credential-secret
+          value: $(params.credential-secret)
+      taskSpec:
+        params:
+          - name: SNAPSHOT
+          - name: provider
+            type: string
+          - name: credential-secret
+        volumes:
+          - name: credential
+            secret:
+              secretName: $(params.credential-secret)
+          - name: trusted-ca
+            configMap:
+              name: trusted-ca
+              items:
+                - key: ca-bundle.crt
+                  path: tls-ca-bundle.pem
+        steps:
+          - name: run-tests
+            image: registry.access.redhat.com/ubi9/python-312:latest
+            volumeMounts:
+              - name: credential
+                mountPath: /var/run/credentials
+              - name: trusted-ca
+                mountPath: /etc/pki/ca-trust/extracted/pem
+                readOnly: true
+            env:
+              - name: SNAPSHOT
+                value: $(params.SNAPSHOT)
+              - name: PROVIDER
+                value: $(params.provider)
+              - name: ARTIFACT_DIR
+                value: "/workspace/artifacts"
+              - name: REQUESTS_CA_BUNDLE
+                value: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+              - name: SSL_CERT_FILE
+                value: "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+            computeResources:
+              requests:
+                cpu: '1'
+                memory: 1Gi
+              limits:
+                cpu: '2'
+                memory: 4Gi
+            script: |
+              #!/usr/bin/env bash
+              set -euo pipefail
+              trap 'echo "error: pipeline step line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
+
+              # --- Parse SNAPSHOT for sandbox component revision ---
+              REVISION=$(echo "${SNAPSHOT}" | python3 -c "
+              import json, sys
+              try:
+                  snap = json.load(sys.stdin)
+                  matches = [c for c in snap['components'] if c['name'] == 'lightspeed-agentic-sandbox']
+                  if not matches:
+                      print('error: SNAPSHOT has no component named lightspeed-agentic-sandbox', file=sys.stderr)
+                      sys.exit(1)
+                  print(matches[0]['source']['git']['revision'])
+              except (json.JSONDecodeError, KeyError, TypeError) as e:
+                  print(f'error: failed to parse SNAPSHOT: {e}', file=sys.stderr)
+                  sys.exit(1)
+              ")
+              echo "Cloning lightspeed-agentic-sandbox@${REVISION}"
+
+              # --- Clone repo at the tested revision ---
+              WORK="/workspace/sandbox"
+              rm -rf "${WORK}"
+              mkdir -p "${WORK}"
+              cd "${WORK}"
+              git init -q
+              git remote add origin https://github.com/openshift/lightspeed-agentic-sandbox.git
+              git fetch --depth 1 origin "${REVISION}"
+              git checkout -q FETCH_HEAD
+
+              # --- Delegate to runner script ---
+              bash .tekton/integration-tests/scripts/run-sandbox-integration-tests.sh "${PROVIDER}"
