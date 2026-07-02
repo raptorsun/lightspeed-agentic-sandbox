@@ -14,6 +14,7 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 | `src/lightspeed_agentic/factory.py` | `ProviderName`, `create_provider()` — `match` on name/env, lazy-imports `GeminiProvider`, `OpenAIProvider`. [PLANNED: OLS-3473] `ClaudeProvider` removed. |
 | `src/lightspeed_agentic/types.py` | `stringify()`, truncation-related constants, event datclasses (`TextDeltaEvent`, `ThinkingDeltaEvent`, `ContentBlockStopEvent`, `ToolCallEvent`, `ToolResultEvent`, `ResultEvent`), `ProviderQueryOptions`, abstract `AgentProvider`. |
 | `src/lightspeed_agentic/tools.py` | `DEFAULT_ALLOWED_TOOLS`. |
+| `src/lightspeed_agentic/mcp.py` | `parse_mcp_servers()` — reads `LIGHTSPEED_MCP_SERVERS` env var, resolves headers (SA token, Secret files), returns list of resolved MCP server configs for `ProviderQueryOptions.mcp_servers`. |
 | `src/lightspeed_agentic/logging.py` | `EventLogger` — thinking buffer, flush thresholds, truncation caps, structured log lines per event type. |
 | `src/lightspeed_agentic/routes/__init__.py` | `build_router()` — resolves model from env via provider name map and `DEFAULT_MODEL`, calls `register_query_routes`. |
 | `src/lightspeed_agentic/routes/models.py` | Pydantic `RunRequest`, `RunResponse` (`extra="allow"`). |
@@ -26,7 +27,7 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 
 1. Client (operator) `POST /v1/agent/run` with JSON body.
 2. FastAPI validates `RunRequest`; `run_endpoint` computes timeout, system prompt, optional context prefix + query.
-3. Handler calls `provider.query(ProviderQueryOptions(...))` with model, turns, budget, tools, cwd, schema.
+3. Handler calls `provider.query(ProviderQueryOptions(...))` with model, turns, budget, tools, cwd, schema, and resolved MCP server configs.
 4. Handler async-iterates events, `EventLogger.log` side effects, stops at first `result` event.
 5. Handler parses `result.text` as JSON object or falls back to plain summary; returns `RunResponse`.
 
@@ -41,8 +42,8 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 
 - **FastAPI / Uvicorn:** ASGI entry `lightspeed_agentic.app:app`.
 - **~~claude-agent-sdk:~~** Removed. [PLANNED: OLS-3473]
-- **google-adk / google.genai:** `Agent`, `Runner`, `InMemorySessionService`, `ExecuteBashTool`, `SkillToolset`, `GenerateContentConfig`.
-- **openai-agents (+ openai):** `SandboxAgent`, `Runner`, `UnixLocalSandboxClient`, stream item types, `AgentOutputSchemaBase` subclass for raw schema.
+- **google-adk / google.genai:** `Agent`, `Runner`, `InMemorySessionService`, `ExecuteBashTool`, `SkillToolset`, `GenerateContentConfig`. MCP via `McpToolset` with `StreamableHTTPConnectionParams`.
+- **openai-agents (+ openai):** `SandboxAgent`, `Runner`, `UnixLocalSandboxClient`, stream item types, `AgentOutputSchemaBase` subclass for raw schema. MCP via `MCPServerStreamableHttp`.
 
 ## Implementation Notes
 
