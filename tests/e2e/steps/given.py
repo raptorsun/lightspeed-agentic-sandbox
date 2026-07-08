@@ -90,7 +90,7 @@ def prepare_context_previous_attempts_echo(bdd_context: dict[str, Any]) -> None:
 _CONTEXT_APPROVED_OPTION = {
     "title": "Restart deployment",
     "diagnosis": {"rootCause": "CrashLoopBackOff"},
-    "proposal": {
+    "remediationPlan": {
         "description": "Roll out restart",
         "actions": [
             {
@@ -110,7 +110,7 @@ def prepare_context_approved_option_echo(bdd_context: dict[str, Any]) -> None:
     bdd_context["context"] = {"approvedOption": _CONTEXT_APPROVED_OPTION}
     bdd_context["expected_approved_title"] = _CONTEXT_APPROVED_OPTION["title"]
     bdd_context["expected_root_cause"] = _CONTEXT_APPROVED_OPTION["diagnosis"]["rootCause"]
-    first_action = _CONTEXT_APPROVED_OPTION["proposal"]["actions"][0]
+    first_action = _CONTEXT_APPROVED_OPTION["remediationPlan"]["actions"][0]
     bdd_context["expected_first_command"] = first_action["command"]
     bdd_context["output_schema"] = CONTEXT_APPROVED_OPTION_ECHO_SCHEMA
     bdd_context["query"] = (
@@ -118,7 +118,7 @@ def prepare_context_approved_option_echo(bdd_context: dict[str, Any]) -> None:
         "Return a single JSON object only (no markdown). "
         "Set success=true, summary='context-echo-ok', approvedTitle to the remediation "
         "Title value, rootCause to the Diagnosis root cause value, and firstCommand to "
-        "the command field of the first action in the proposal (values only, not labels)."
+        "the command field of the first action in the remediation plan (values only, not labels)."
     )
 
 
