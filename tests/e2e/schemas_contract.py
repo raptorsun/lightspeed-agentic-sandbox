@@ -73,8 +73,9 @@ CONTEXT_APPROVED_OPTION_ECHO_SCHEMA: dict[str, Any] = {
         "summary": {"type": "string"},
         "approvedTitle": {"type": "string", "minLength": 1},
         "rootCause": {"type": "string", "minLength": 1},
+        "firstCommand": {"type": "string", "minLength": 1},
     },
-    "required": ["success", "summary", "approvedTitle", "rootCause"],
+    "required": ["success", "summary", "approvedTitle", "rootCause", "firstCommand"],
 }
 
 # Strict schema used with a prompt that encourages invalid / non-JSON output.

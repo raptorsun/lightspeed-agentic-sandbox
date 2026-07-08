@@ -104,17 +104,22 @@ def assert_first_failure_reason_matches_context(bdd_context: dict[str, Any]) -> 
 
 @then("the response approved option fields match the prepared context")
 def assert_approved_option_matches_context(bdd_context: dict[str, Any]) -> None:
-    """Assert echoed approvedTitle and rootCause match approvedOption from context."""
+    """Assert echoed approvedTitle, rootCause, and firstCommand match context."""
     body = bdd_context["response_body"]
     expected_title = bdd_context["expected_approved_title"]
     expected_root_cause = bdd_context["expected_root_cause"]
+    expected_command = bdd_context["expected_first_command"]
     actual_title = body.get("approvedTitle", "")
     actual_root_cause = body.get("rootCause", "")
+    actual_command = body.get("firstCommand", "")
     assert actual_title == expected_title, (
         f"expected approvedTitle {expected_title!r}, got {actual_title!r} in {body!r}"
     )
     assert actual_root_cause == expected_root_cause, (
         f"expected rootCause {expected_root_cause!r}, got {actual_root_cause!r} in {body!r}"
+    )
+    assert actual_command == expected_command, (
+        f"expected firstCommand {expected_command!r}, got {actual_command!r} in {body!r}"
     )
 
 
