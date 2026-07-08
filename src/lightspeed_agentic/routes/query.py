@@ -47,7 +47,10 @@ def _format_context_prefix(context: dict[str, Any]) -> str:
         if actions := opt["proposal"].get("actions"):
             lines.append("Actions to execute:")
             for action in actions:
-                lines.append(f"  - [{action['type']}] {action['description']}")
+                if cmd := action.get("command"):
+                    lines.append(f"  - [{action['type']}] {cmd} — {action['description']}")
+                else:
+                    lines.append(f"  - [{action['type']}] {action['description']}")
         lines.append("=== DO NOT perform any actions beyond what is listed above ===")
         lines.append("")
 

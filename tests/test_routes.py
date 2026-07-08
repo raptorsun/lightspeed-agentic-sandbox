@@ -270,6 +270,33 @@ def test_format_context_approved_option_with_actions() -> None:
     assert "=== DO NOT perform any actions beyond what is listed above ===" in text
 
 
+def test_format_context_approved_option_with_command() -> None:
+    """Rule 16: actions with command field show command before description."""
+    cmd = "kubectl set resources deploy/web -n prod --limits=memory=512Mi"
+    text = _format_context_prefix(
+        {
+            "approvedOption": {
+                "title": "Increase memory",
+                "diagnosis": {"rootCause": "OOMKilled"},
+                "proposal": {
+                    "description": "Patch deployment",
+                    "risk": "low",
+                    "reversible": True,
+                    "actions": [
+                        {
+                            "command": cmd,
+                            "type": "mutation",
+                            "description": "Increase memory limit",
+                        },
+                    ],
+                },
+            }
+        }
+    )
+    expected = f"  - [mutation] {cmd} — Increase memory limit"
+    assert expected in text
+
+
 def test_format_context_approved_option_without_actions() -> None:
     text = _format_context_prefix(
         {
