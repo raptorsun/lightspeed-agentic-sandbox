@@ -40,9 +40,9 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 17. **Thin-adapter principle.** Providers MUST delegate tool execution, command invocation, and skill discovery to their SDKs. Adapters MUST NOT implement custom tool executors that duplicate SDK behavior except for minimal glue (e.g., auto-confirm, path layout).
 
-18. **Structured output.** When `output_schema` is set: Claude uses the SDK’s JSON-schema output format; Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI’s strict mode requires.
+18. **Structured output.** When `output_schema` is set: Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI’s strict mode requires.
 
-19. **Skills.** Claude discovers skills via SDK skill settings and a writable symlink layout under the effective cwd when the skill root is read-only. Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
+19. **Skills.** Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
 
 20. **Default allowed tools list.** Shared default names: `Bash`, `Read`, `Glob`, `Grep`, `Skill`. The HTTP route always passes this list unless a future contract exposes overrides. [PLANNED: OLS-3033]
 
@@ -64,7 +64,6 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 | `GOOGLE_GENAI_USE_VERTEXAI` | Gemini: Vertex vs consumer API behavior and tool mix. Set internally by configuration mapping (see `configuration.md` rule 2), not by operator. |
 | `OPENAI_BASE_URL` | OpenAI-compatible API endpoint override. Set internally by configuration mapping, not by operator. |
 | `GOOGLE_API_KEY`, `GEMINI_API_KEY` | Gemini credential and routing. Populated from credentials secret envFrom. |
-| `CLAUDE_CODE_USE_VERTEX`, `ANTHROPIC_VERTEX_PROJECT_ID`, `CLOUD_ML_REGION` | Claude via Vertex. Set internally by configuration mapping, not by operator. |
 
 ## Constraints
 
@@ -73,6 +72,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 ## Planned Changes
 
+- Remove Claude SDK (`claude-agent-sdk`, `@anthropic-ai/claude-code` binary) and `ClaudeProvider`. Config paths `anthropic`, `vertex/anthropic`, `bedrock` pending rerouting to alternative agentic SDKs. [PLANNED: OLS-3473]
 - Parity improvements across providers (tools, streaming, structured output edge cases). [PLANNED: OLS-3047–OLS-3053]
 - BYOK and RAG integration hooks without breaking the thin-adapter rule. [PLANNED: OLS-3054–OLS-3057]
 - Align operator-passed `allowedTools` and `llm` with `ProviderQueryOptions`. [PLANNED: OLS-3033]
