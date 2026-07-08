@@ -92,6 +92,13 @@ _CONTEXT_APPROVED_OPTION = {
     "diagnosis": {"rootCause": "CrashLoopBackOff"},
     "proposal": {
         "description": "Roll out restart",
+        "actions": [
+            {
+                "command": "kubectl rollout restart deploy/web -n prod",
+                "type": "mutation",
+                "description": "Restart the deployment",
+            },
+        ],
         "risk": "low",
         "reversible": True,
     },
@@ -103,13 +110,15 @@ def prepare_context_approved_option_echo(bdd_context: dict[str, Any]) -> None:
     bdd_context["context"] = {"approvedOption": _CONTEXT_APPROVED_OPTION}
     bdd_context["expected_approved_title"] = _CONTEXT_APPROVED_OPTION["title"]
     bdd_context["expected_root_cause"] = _CONTEXT_APPROVED_OPTION["diagnosis"]["rootCause"]
+    first_action = _CONTEXT_APPROVED_OPTION["proposal"]["actions"][0]
+    bdd_context["expected_first_command"] = first_action["command"]
     bdd_context["output_schema"] = CONTEXT_APPROVED_OPTION_ECHO_SCHEMA
     bdd_context["query"] = (
         "The user message contains a [context] block with an approved remediation section. "
         "Return a single JSON object only (no markdown). "
         "Set success=true, summary='context-echo-ok', approvedTitle to the remediation "
-        "Title value, and rootCause to the Diagnosis root cause value (values only, "
-        "not labels)."
+        "Title value, rootCause to the Diagnosis root cause value, and firstCommand to "
+        "the command field of the first action in the proposal (values only, not labels)."
     )
 
 
