@@ -11,6 +11,7 @@ import os
 
 from fastapi import APIRouter
 
+from lightspeed_agentic.mcp import ResolvedMCPServer, parse_mcp_servers
 from lightspeed_agentic.routes.query import register_query_routes
 from lightspeed_agentic.types import DEFAULT_MODEL, AgentProvider
 
@@ -53,8 +54,10 @@ def build_router(
     max_turns: int = 200,
     default_timeout_ms: int = 300_000,
     audit_enabled: bool = False,
+    mcp_servers: list[ResolvedMCPServer] | None = None,
 ) -> APIRouter:
     resolved_model = _resolve_router_model(provider.name, model)
+    resolved_mcp = mcp_servers if mcp_servers is not None else parse_mcp_servers()
 
     router = APIRouter()
     register_query_routes(
@@ -65,5 +68,6 @@ def build_router(
         max_turns=max_turns,
         default_timeout_ms=default_timeout_ms,
         audit_enabled=audit_enabled,
+        mcp_servers=resolved_mcp,
     )
     return router

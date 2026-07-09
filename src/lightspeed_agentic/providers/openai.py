@@ -212,12 +212,19 @@ class OpenAIProvider(AgentProvider):
 
         manifest = _build_manifest(options.cwd)
 
+        mcp_servers_list: list[Any] = []
+        if options.mcp_servers:
+            from lightspeed_agentic.mcp import to_openai_mcp_servers
+
+            mcp_servers_list = to_openai_mcp_servers(options.mcp_servers)
+
         agent_kwargs: dict[str, Any] = {
             "name": "lightspeed",
             "instructions": options.system_prompt,
             "model": model,
             "capabilities": capabilities,
             "default_manifest": manifest,
+            "mcp_servers": mcp_servers_list,
         }
 
         if options.output_schema:

@@ -4,7 +4,10 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from lightspeed_agentic.mcp import ResolvedMCPServer
 
 TOOL_INPUT_MAX_CHARS = 300
 TOOL_OUTPUT_MAX_CHARS = 500
@@ -79,6 +82,7 @@ class ProviderQueryOptions:
     cwd: str
     output_schema: dict[str, Any] | None = None
     stream: bool = False
+    mcp_servers: list[ResolvedMCPServer] = field(default_factory=list)
 
 
 class AgentProvider(ABC):

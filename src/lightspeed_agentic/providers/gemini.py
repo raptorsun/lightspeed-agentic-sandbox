@@ -103,6 +103,11 @@ class GeminiProvider(AgentProvider):
         if skill_toolset is not None:
             tools.append(skill_toolset)
 
+        if options.mcp_servers:
+            from lightspeed_agentic.mcp import to_gemini_mcp_toolsets
+
+            tools.extend(to_gemini_mcp_toolsets(options.mcp_servers))
+
         if not options.output_schema:
             tools.append(exit_loop)
 

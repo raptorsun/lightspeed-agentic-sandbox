@@ -87,6 +87,12 @@ class ClaudeProvider(AgentProvider):
                 "schema": options.output_schema,
             }
 
+        mcp_servers: dict = {}
+        if options.mcp_servers:
+            from lightspeed_agentic.mcp import to_claude_mcp_config
+
+            mcp_servers = to_claude_mcp_config(options.mcp_servers)
+
         sdk_options = ClaudeAgentOptions(
             model=options.model,
             max_turns=options.max_turns,
@@ -98,6 +104,7 @@ class ClaudeProvider(AgentProvider):
             skills="all",
             include_partial_messages=True,
             output_format=output_format,
+            mcp_servers=mcp_servers,
         )
 
         _tool_name = ""
