@@ -163,10 +163,10 @@ class ClaudeProvider(AgentProvider):
                     else (getattr(msg, "result", None) or "")
                 )
 
-                usage = getattr(msg, "usage", None)
+                usage = getattr(msg, "usage", None) or {}
                 yield ResultEvent(
                     text=text,
                     cost_usd=getattr(msg, "total_cost_usd", 0) or 0,
-                    input_tokens=getattr(usage, "input_tokens", 0) if usage else 0,
-                    output_tokens=getattr(usage, "output_tokens", 0) if usage else 0,
+                    input_tokens=usage.get("input_tokens", 0) if isinstance(usage, dict) else getattr(usage, "input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0) if isinstance(usage, dict) else getattr(usage, "output_tokens", 0),
                 )
