@@ -56,9 +56,7 @@ def _resolve_header(header: dict) -> ResolvedMCPHeader | None:
             logger.warning("Secret dir not found: %s for header %s", secret_dir, name)
             return None
         try:
-            files = sorted(
-                (f for f in secret_dir.iterdir() if f.is_file()), key=lambda f: f.name
-            )
+            files = sorted((f for f in secret_dir.iterdir() if f.is_file()), key=lambda f: f.name)
         except OSError:
             logger.warning("Cannot list secret dir %s for header %s", secret_dir, name)
             return None
@@ -138,7 +136,7 @@ def to_claude_mcp_config(servers: list[ResolvedMCPServer]) -> dict[str, dict]:
         result[s.name] = {
             "type": "http",
             "url": s.url,
-            **( {"headers": _headers_dict(s)} if s.headers else {}),
+            **({"headers": _headers_dict(s)} if s.headers else {}),
         }
     return result
 
@@ -169,7 +167,7 @@ def to_openai_mcp_servers(servers: list[ResolvedMCPServer]) -> list:
     for s in servers:
         params = MCPServerStreamableHttpParams(
             url=s.url,
-            **( {"headers": _headers_dict(s)} if s.headers else {}),
+            **({"headers": _headers_dict(s)} if s.headers else {}),
         )
         result.append(MCPServerStreamableHttp(params=params, name=s.name))
     return result
