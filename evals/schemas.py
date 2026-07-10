@@ -1,8 +1,16 @@
 """JSON Schema definitions for eval tests.
 
-The ANALYSIS_WITH_COMPONENTS_SCHEMA mirrors the operator's AnalysisOutputSchema
-with a components array injected at options[].components — matching how
-mergeAgentOutputSchema works in lightspeed-operator/internal/controller/proposal/schemas.go.
+The ANALYSIS_WITH_COMPONENTS_SCHEMA is a best-effort approximation of the
+operator's AnalysisOutputSchema with a components array injected at
+options[].components — matching how mergeAgentOutputSchema works in
+lightspeed-agentic-operator/controller/proposal/schemas.go.
+
+Intentional divergences from the operator schema (eval-specific):
+  - reversible is boolean here vs enum (Reversible/Irreversible/Partial) in CRD
+  - enum values are lowercase here vs title-case in the CRD
+  - diagnosis/components include token sentinels for eval verification
+
+Aligned with operator schema: openshift/lightspeed-agentic-operator#162
 """
 
 from __future__ import annotations
@@ -50,7 +58,6 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
                                 "enum": ["low", "medium", "high", "critical"],
                             },
                             "reversible": {"type": "boolean"},
-                            "estimatedImpact": {"type": "string"},
                         },
                         "required": ["description", "actions", "risk", "reversible"],
                     },
@@ -69,6 +76,7 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
                                         "expected": {"type": "string"},
                                         "type": {"type": "string"},
                                     },
+                                    "required": ["name", "type"],
                                 },
                             },
                             "rollbackPlan": {
@@ -79,6 +87,7 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
                                 },
                             },
                         },
+                        "required": ["description"],
                     },
                     "rbac": {
                         "type": "object",
