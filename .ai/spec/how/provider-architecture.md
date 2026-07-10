@@ -12,9 +12,9 @@ Cross-references: behavioral rules → `what/run-api.md`, `what/provider-contrac
 | `src/lightspeed_agentic/app.py` | `app: FastAPI` — constructs provider via `create_provider()`, builds router with `build_router(...)`, `include_router(..., prefix="/v1/agent")`, registers `GET /health` and `GET /ready` via health module. |
 | `src/lightspeed_agentic/health.py` | `GET /health` liveness (no external calls) + `GET /ready` readiness (R1 credential env + R2 provider endpoint reachability per `health-probes.md`). |
 | `src/lightspeed_agentic/factory.py` | `ProviderName`, `create_provider()` — `match` on name/env, lazy-imports `GeminiProvider`, `OpenAIProvider`. [PLANNED: OLS-3473] `ClaudeProvider` removed. |
-| `src/lightspeed_agentic/types.py` | `stringify()`, truncation-related constants, event datclasses (`TextDeltaEvent`, `ThinkingDeltaEvent`, `ContentBlockStopEvent`, `ToolCallEvent`, `ToolResultEvent`, `ResultEvent`), `ProviderQueryOptions`, abstract `AgentProvider`. |
+| `src/lightspeed_agentic/types.py` | `stringify()`, truncation-related constants, event dataclasses (`TextDeltaEvent`, `ThinkingDeltaEvent`, `ContentBlockStopEvent`, `ToolCallEvent`, `ToolResultEvent`, `ResultEvent`), `ProviderQueryOptions`, abstract `AgentProvider`. |
 | `src/lightspeed_agentic/tools.py` | `DEFAULT_ALLOWED_TOOLS`. |
-| `src/lightspeed_agentic/mcp.py` | `parse_mcp_servers()` — reads `LIGHTSPEED_MCP_SERVERS` env var, resolves headers (SA token, Secret files), returns list of resolved MCP server configs for `ProviderQueryOptions.mcp_servers`. |
+| `src/lightspeed_agentic/mcp.py` | `parse_mcp_servers()` — reads `LIGHTSPEED_MCP_SERVERS` env var, resolves headers (SA token, Secret files, Client passthrough), returns list of resolved MCP server configs for `ProviderQueryOptions.mcp_servers`. |
 | `src/lightspeed_agentic/logging.py` | `EventLogger` — thinking buffer, flush thresholds, truncation caps, structured log lines per event type. |
 | `src/lightspeed_agentic/routes/__init__.py` | `build_router()` — resolves model from env via provider name map and `DEFAULT_MODEL`, calls `register_query_routes`. |
 | `src/lightspeed_agentic/routes/models.py` | Pydantic `RunRequest`, `RunResponse` (`extra="allow"`). |
