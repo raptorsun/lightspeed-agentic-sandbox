@@ -1,4 +1,4 @@
-"""Tests for MCP server configuration parsing."""
+"""Tests for MCP server configuration parsing and provider adapters."""
 
 from __future__ import annotations
 
@@ -7,14 +7,13 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from lightspeed_agentic.mcp import (
-    MCP_SECRET_MOUNT_ROOT,
-    SA_TOKEN_PATH,
     ResolvedMCPHeader,
     ResolvedMCPServer,
     parse_mcp_servers,
+    to_claude_mcp_config,
+    to_gemini_mcp_toolsets,
+    to_openai_mcp_servers,
 )
 
 
@@ -174,3 +173,106 @@ class TestParseMCPServers:
             assert result[0].name == "a"
             assert result[1].name == "b"
             assert result[1].timeout == 30
+
+    def test_invalid_entry_skipped(self):
+        servers_json = json.dumps([42, {"name": "ok", "url": "http://ok:8080/mcp"}])
+        with patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}):
+            result = parse_mcp_servers()
+            assert len(result) == 1
+            assert result[0].name == "ok"
+
+    def test_invalid_header_skipped(self):
+        servers_json = json.dumps([
+            {"name": "s", "url": "http://s:8080/mcp", "headers": [
+                "bad", {"name": "X", "source": "Client"},
+            ]},
+        ])
+        with patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}):
+            result = parse_mcp_servers()
+            assert result[0].headers == []
+
+    def test_path_traversal_rejected(self, tmp_path: Path):
+        servers_json = json.dumps([
+            {"name": "evil", "url": "http://x:8080/mcp", "headers": [
+                {"name": "X", "source": "Secret", "secretName": "../../etc"},
+            ]},
+        ])
+        with (
+            patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}),
+            patch("lightspeed_agentic.mcp.MCP_SECRET_MOUNT_ROOT", str(tmp_path)),
+        ):
+            result = parse_mcp_servers()
+            assert result[0].headers == []
+
+
+class TestClaudeAdapter:
+    def test_basic_config(self):
+        servers = [ResolvedMCPServer(name="ocp-mcp", url="https://ocp:8443/mcp")]
+        config = to_claude_mcp_config(servers)
+        assert config == {"ocp-mcp": {"type": "http", "url": "https://ocp:8443/mcp"}}
+
+    def test_with_headers(self):
+        servers = [
+            ResolvedMCPServer(
+                name="ext",
+                url="http://ext:9090/mcp",
+                headers=[ResolvedMCPHeader(name="Authorization", value="Bearer tok")],
+            )
+        ]
+        config = to_claude_mcp_config(servers)
+        assert config["ext"]["headers"] == {"Authorization": "Bearer tok"}
+
+    def test_multiple_servers(self):
+        servers = [
+            ResolvedMCPServer(name="a", url="http://a/mcp"),
+            ResolvedMCPServer(name="b", url="http://b/mcp"),
+        ]
+        config = to_claude_mcp_config(servers)
+        assert set(config.keys()) == {"a", "b"}
+
+
+class TestGeminiAdapter:
+    def test_creates_toolsets(self):
+        servers = [ResolvedMCPServer(name="ocp-mcp", url="https://ocp:8443/mcp", timeout=90)]
+        toolsets = to_gemini_mcp_toolsets(servers)
+        assert len(toolsets) == 1
+        from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
+
+        assert isinstance(toolsets[0], McpToolset)
+
+    def test_passes_connection_params(self):
+        servers = [
+            ResolvedMCPServer(
+                name="s",
+                url="http://test:8080/mcp",
+                timeout=45,
+                headers=[ResolvedMCPHeader(name="X-Key", value="val")],
+            )
+        ]
+        toolsets = to_gemini_mcp_toolsets(servers)
+        params = toolsets[0]._connection_params
+        assert params.url == "http://test:8080/mcp"
+        assert params.headers == {"X-Key": "val"}
+        assert params.timeout == 45.0
+
+
+class TestOpenAIAdapter:
+    def test_creates_servers(self):
+        servers = [ResolvedMCPServer(name="ocp-mcp", url="https://ocp:8443/mcp")]
+        result = to_openai_mcp_servers(servers)
+        assert len(result) == 1
+        from agents.mcp import MCPServerStreamableHttp
+
+        assert isinstance(result[0], MCPServerStreamableHttp)
+        assert result[0].name == "ocp-mcp"
+
+    def test_passes_headers(self):
+        servers = [
+            ResolvedMCPServer(
+                name="ext",
+                url="http://ext/mcp",
+                headers=[ResolvedMCPHeader(name="Auth", value="Bearer x")],
+            )
+        ]
+        result = to_openai_mcp_servers(servers)
+        assert result[0].params["headers"] == {"Auth": "Bearer x"}

@@ -14,8 +14,8 @@ from pathlib import Path
 
 logger = logging.getLogger("lightspeed_agentic")
 
-SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-MCP_SECRET_MOUNT_ROOT = "/var/secrets/mcp"
+SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"  # noqa: S105
+MCP_SECRET_MOUNT_ROOT = "/var/secrets/mcp"  # noqa: S105
 
 
 @dataclass(frozen=True)
@@ -55,13 +55,21 @@ def _resolve_header(header: dict) -> ResolvedMCPHeader | None:
         if not secret_dir.is_dir():
             logger.warning("Secret dir not found: %s for header %s", secret_dir, name)
             return None
-        files = sorted(
-            (f for f in secret_dir.iterdir() if f.is_file()), key=lambda f: f.name
-        )
+        try:
+            files = sorted(
+                (f for f in secret_dir.iterdir() if f.is_file()), key=lambda f: f.name
+            )
+        except OSError:
+            logger.warning("Cannot list secret dir %s for header %s", secret_dir, name)
+            return None
         if not files:
             logger.warning("No files in secret dir %s for header %s", secret_dir, name)
             return None
-        value = files[0].read_text().strip()
+        try:
+            value = files[0].read_text().strip()
+        except OSError:
+            logger.warning("Cannot read secret file %s for header %s", files[0], name)
+            return None
         return ResolvedMCPHeader(name=name, value=value)
 
     if source == "Client":

@@ -216,6 +216,7 @@ class OpenAIProvider(AgentProvider):
         mcp_manager = None
         if options.mcp_servers:
             from agents.mcp import MCPServerManager
+
             from lightspeed_agentic.mcp import to_openai_mcp_servers
 
             mcp_servers_list = to_openai_mcp_servers(options.mcp_servers)
