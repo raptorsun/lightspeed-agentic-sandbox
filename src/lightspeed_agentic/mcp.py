@@ -11,6 +11,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("lightspeed_agentic")
 
@@ -32,7 +33,7 @@ class ResolvedMCPServer:
     headers: list[ResolvedMCPHeader] = field(default_factory=list)
 
 
-def _resolve_header(header: dict) -> ResolvedMCPHeader | None:
+def _resolve_header(header: dict[str, str]) -> ResolvedMCPHeader | None:
     """Resolve a single header entry based on its source type."""
     name = header["name"]
     source = header["source"]
@@ -129,26 +130,27 @@ def _headers_dict(server: ResolvedMCPServer) -> dict[str, str]:
     return {h.name: h.value for h in server.headers}
 
 
-def to_claude_mcp_config(servers: list[ResolvedMCPServer]) -> dict[str, dict]:
+def to_claude_mcp_config(servers: list[ResolvedMCPServer]) -> dict[str, Any]:
     """Convert to claude-agent-sdk McpServerConfig format (dict keyed by name)."""
-    result: dict[str, dict] = {}
+    from claude_agent_sdk.types import McpHttpServerConfig
+
+    result: dict[str, Any] = {}
     for s in servers:
-        result[s.name] = {
-            "type": "http",
-            "url": s.url,
-            **({"headers": _headers_dict(s)} if s.headers else {}),
-        }
+        config = McpHttpServerConfig(type="http", url=s.url)
+        if s.headers:
+            config["headers"] = _headers_dict(s)
+        result[s.name] = config
     return result
 
 
-def to_gemini_mcp_toolsets(servers: list[ResolvedMCPServer]) -> list:
+def to_gemini_mcp_toolsets(servers: list[ResolvedMCPServer]) -> list[Any]:
     """Convert to google-adk McpToolset instances."""
-    from google.adk.tools.mcp_tool.mcp_toolset import (
+    from google.adk.tools.mcp_tool.mcp_toolset import (  # type: ignore[attr-defined]
         McpToolset,
         StreamableHTTPConnectionParams,
     )
 
-    toolsets = []
+    toolsets: list[Any] = []
     for s in servers:
         params = StreamableHTTPConnectionParams(
             url=s.url,
@@ -159,15 +161,14 @@ def to_gemini_mcp_toolsets(servers: list[ResolvedMCPServer]) -> list:
     return toolsets
 
 
-def to_openai_mcp_servers(servers: list[ResolvedMCPServer]) -> list:
+def to_openai_mcp_servers(servers: list[ResolvedMCPServer]) -> list[Any]:
     """Convert to openai-agents MCPServerStreamableHttp instances."""
     from agents.mcp import MCPServerStreamableHttp, MCPServerStreamableHttpParams
 
-    result = []
+    result: list[Any] = []
     for s in servers:
-        params = MCPServerStreamableHttpParams(
-            url=s.url,
-            **({"headers": _headers_dict(s)} if s.headers else {}),
-        )
+        params = MCPServerStreamableHttpParams(url=s.url)
+        if s.headers:
+            params["headers"] = _headers_dict(s)
         result.append(MCPServerStreamableHttp(params=params, name=s.name))
     return result
