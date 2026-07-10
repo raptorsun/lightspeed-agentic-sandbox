@@ -76,14 +76,14 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
 19. **System packages — minimum expectations.** Runtime image includes Bash, Git, OpenShift CLI (`oc`), Kubernetes CLI (`kubectl`), ripgrep, and supporting OS utilities for debugging and archives per the container recipe. [PLANNED: OLS-3473] Node.js removed — was only needed for Claude Code CLI.
 
-20. **MCP server configuration.** When `LIGHTSPEED_MCP_SERVERS` is set, the sandbox MUST parse it as a JSON array of MCP server entries. Each entry has the shape `{"name": string, "url": string, "timeout": int, "headers": [{"name": string, "source": string, "secretName"?: string}]}`. The sandbox MUST build SDK-native MCP client configs from this array and pass them into provider adapters via `ProviderQueryOptions.mcp_servers` (see `provider-contract.md`). When the env var is absent or empty, no MCP servers are configured.
+20. **MCP server configuration.** When `LIGHTSPEED_MCP_SERVERS` is set, the sandbox MUST parse it as a JSON array of MCP server entries. Each entry has the shape `{"name": string, "url": string, "timeout": int, "headers": [{"name": string, "source": string, "secretName"?: string}]}`. `secretName` is REQUIRED when `source` is `Secret`; the sandbox MUST reject entries where `source` is `Secret` and `secretName` is missing or empty. The sandbox MUST build SDK-native MCP client configs from this array and pass them into provider adapters via `ProviderQueryOptions.mcp_servers` (see `provider-contract.md`). When the env var is absent or empty, no MCP servers are configured.
 
 21. **MCP header resolution.** For each header in an MCP server entry, the sandbox MUST resolve the value based on the `source` field:
 
     | `source` | Resolution |
     |---|---|
     | `ServiceAccountToken` | Read the projected SA token from `/var/run/secrets/kubernetes.io/serviceaccount/token` and format as `Bearer <token>`. |
-    | `Secret` | Read the first file from `/var/secrets/mcp/<secretName>/` where `secretName` is the `secretName` field on the header entry. |
+    | `Secret` | Read the file at `/var/secrets/mcp/<secretName>/<secretName>` where `secretName` is the required `secretName` field on the header entry. The path is fully deterministic — no directory listing or "first file" heuristic. |
     | `Client` | Skip — not resolved by the sandbox. Reserved for future client-passthrough flows. |
 
 22. **MCP transport.** The sandbox MUST use Streamable HTTP as the MCP transport when connecting to remote MCP servers. SSE transport (deprecated in MCP spec since 2025-03-26) MUST NOT be used for new connections.
