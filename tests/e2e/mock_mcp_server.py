@@ -21,7 +21,6 @@ from mcp.server import Server
 from mcp.server.streamable_http import StreamableHTTPServerTransport
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import Response
 from starlette.routing import Route
 
 logger = logging.getLogger("mock_mcp_server")
@@ -109,24 +108,23 @@ async def _start_session(session_id: str) -> _SessionState:
     return state
 
 
-async def _handle_mcp(request: Request) -> Response:
-    """Route MCP requests to the per-session transport."""
-    session_id = request.headers.get("mcp-session-id")
+class _MCPEndpoint:
+    """Raw ASGI endpoint — hands control directly to the MCP transport."""
 
-    if session_id and session_id in _sessions:
-        state = _sessions[session_id]
-    else:
-        session_id = str(uuid.uuid4())
-        state = await _start_session(session_id)
+    async def __call__(self, scope, receive, send) -> None:
+        request = Request(scope, receive, send)
+        session_id = request.headers.get("mcp-session-id")
 
-    await state.transport.handle_request(request.scope, request.receive, request._send)
-    return Response()
+        if session_id and session_id in _sessions:
+            state = _sessions[session_id]
+        else:
+            session_id = str(uuid.uuid4())
+            state = await _start_session(session_id)
+
+        await state.transport.handle_request(scope, receive, send)
 
 
 def create_app() -> Starlette:
-    async def mcp_endpoint(request: Request) -> Response:
-        return await _handle_mcp(request)
-
     @asynccontextmanager
     async def lifespan(_app):
         yield
@@ -136,7 +134,7 @@ def create_app() -> Starlette:
         _sessions.clear()
 
     app = Starlette(
-        routes=[Route("/mcp", mcp_endpoint, methods=["GET", "POST", "DELETE"])],
+        routes=[Route("/mcp", _MCPEndpoint(), methods=["GET", "POST", "DELETE"])],
         lifespan=lifespan,
     )
     return app
