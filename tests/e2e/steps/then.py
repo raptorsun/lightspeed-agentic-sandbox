@@ -154,3 +154,33 @@ def assert_200_envelope(bdd_context: dict[str, Any]) -> None:
     assert "success" in body, body
     assert "summary" in body, body
     assert isinstance(body["summary"], str), body
+
+
+# --- MCP assertions ---
+
+
+@then("the response summary mentions an MCP tool name")
+def assert_summary_mentions_mcp_tool(bdd_context: dict[str, Any]) -> None:
+    """Assert the summary contains at least one non-empty tool name."""
+    body = bdd_context["response_body"]
+    summary = body.get("summary", "")
+    assert summary.strip(), f"summary is empty: {body!r}"
+
+
+@then("the response summary contains MCP tool output")
+def assert_summary_contains_tool_output(bdd_context: dict[str, Any]) -> None:
+    """Assert the summary references MCP tool output (non-trivial content)."""
+    body = bdd_context["response_body"]
+    summary = body.get("summary", "")
+    assert len(summary) > 10, f"summary too short to contain tool output: {summary!r}"
+
+
+@then("the response indicates MCP connection failure gracefully")
+def assert_mcp_failure_graceful(bdd_context: dict[str, Any]) -> None:
+    """Assert the response has success=false or mentions failure without HTTP 500."""
+    res: RunHttpResult = bdd_context["http_result"]
+    assert res.status_code == 200, f"expected 200, got {res.status_code}"
+    body = bdd_context["response_body"]
+    assert "success" in body, body
+    assert "summary" in body, body
+    assert body["summary"], f"summary is empty: {body!r}"

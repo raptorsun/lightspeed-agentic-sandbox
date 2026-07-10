@@ -77,6 +77,15 @@ CONTEXT_APPROVED_OPTION_ECHO_SCHEMA: dict[str, Any] = {
     "required": ["success", "summary", "approvedTitle", "rootCause"],
 }
 
+MCP_TOOL_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "success": {"type": "boolean"},
+        "summary": {"type": "string", "minLength": 1},
+    },
+    "required": ["success", "summary"],
+}
+
 # Strict schema used with a prompt that encourages invalid / non-JSON output.
 STRICT_CONFLICT_SCHEMA: dict[str, Any] = {
     "type": "object",
