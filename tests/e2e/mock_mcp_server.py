@@ -100,7 +100,12 @@ async def _start_session(session_id: str) -> _SessionState:
 
     state.task = asyncio.create_task(_run())
     _sessions[session_id] = state
-    await state.ready.wait()
+    try:
+        await asyncio.wait_for(state.ready.wait(), timeout=10)
+    except TimeoutError:
+        state.task.cancel()
+        del _sessions[session_id]
+        raise RuntimeError(f"MCP session {session_id} failed to start within 10s") from None
     return state
 
 
