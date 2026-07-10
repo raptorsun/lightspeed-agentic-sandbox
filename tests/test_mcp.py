@@ -192,15 +192,37 @@ class TestParseMCPServers:
             assert result[0].headers == []
 
     def test_path_traversal_rejected(self, tmp_path: Path):
+        mount_root = tmp_path / "secrets"
+        mount_root.mkdir()
+        outside_dir = tmp_path / "outside"
+        outside_dir.mkdir()
+        (outside_dir / "leaked").write_text("should-not-be-read")
+
         servers_json = json.dumps([
             {"name": "evil", "url": "http://x:8080/mcp", "headers": [
-                {"name": "X", "source": "Secret", "secretName": "../../etc"},
+                {"name": "X", "source": "Secret", "secretName": "../outside"},
             ]},
         ])
         with (
             patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}),
-            patch("lightspeed_agentic.mcp.MCP_SECRET_MOUNT_ROOT", str(tmp_path)),
+            patch("lightspeed_agentic.mcp.MCP_SECRET_MOUNT_ROOT", str(mount_root)),
         ):
+            result = parse_mcp_servers()
+            assert result[0].headers == []
+
+    def test_headers_null_treated_as_empty(self):
+        servers_json = json.dumps([
+            {"name": "s", "url": "http://s:8080/mcp", "headers": None},
+        ])
+        with patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}):
+            result = parse_mcp_servers()
+            assert result[0].headers == []
+
+    def test_headers_non_list_treated_as_empty(self):
+        servers_json = json.dumps([
+            {"name": "s", "url": "http://s:8080/mcp", "headers": "bad"},
+        ])
+        with patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}):
             result = parse_mcp_servers()
             assert result[0].headers == []
 

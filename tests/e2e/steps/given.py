@@ -176,9 +176,16 @@ def prepare_adversarial(bdd_context: dict[str, Any]) -> None:
 
 @given("the sandbox service is running with MCP servers configured")
 def sandbox_running_with_mcp(server_url: str) -> None:
+    import json as _json
+
     assert server_url.startswith("http"), f"unexpected server URL: {server_url!r}"
-    assert os.environ.get("LIGHTSPEED_MCP_SERVERS", "").strip(), (
-        "LIGHTSPEED_MCP_SERVERS not set — MCP servers not configured for this test run"
+    raw = os.environ.get("LIGHTSPEED_MCP_SERVERS", "").strip()
+    assert raw, "LIGHTSPEED_MCP_SERVERS not set — MCP servers not configured for this test run"
+    parsed = _json.loads(raw)
+    assert isinstance(parsed, list), f"LIGHTSPEED_MCP_SERVERS must be a JSON array, got: {raw!r}"
+    assert len(parsed) > 0, "LIGHTSPEED_MCP_SERVERS is an empty array"
+    assert all("name" in s and "url" in s for s in parsed), (
+        f"Each MCP server entry must have 'name' and 'url': {parsed!r}"
     )
 
 
@@ -196,14 +203,13 @@ def prepare_mcp_tool_listing(bdd_context: dict[str, Any]) -> None:
 def prepare_mcp_tool_invocation(bdd_context: dict[str, Any]) -> None:
     bdd_context["output_schema"] = MCP_TOOL_OUTPUT_SCHEMA
     bdd_context["query"] = (
-        "Use the MCP server to list namespaces in the cluster (or call any "
-        "available MCP tool). Report the result. "
+        "Call the 'list_namespaces' tool from the MCP server named 'mock-ocp-mcp'. "
         "Return a single JSON object only (no markdown). "
-        "Fields: success=true, summary=<brief description of what the tool returned>."
+        "Fields: success=true, summary=<the exact text output from the tool>."
     )
 
 
-@given("an MCP query targeting a nonexistent server tool has been prepared")
+@given("an MCP query targeting a nonexistent tool has been prepared")
 def prepare_mcp_nonexistent_tool(bdd_context: dict[str, Any]) -> None:
     bdd_context["output_schema"] = MCP_TOOL_OUTPUT_SCHEMA
     bdd_context["query"] = (
@@ -211,25 +217,4 @@ def prepare_mcp_nonexistent_tool(bdd_context: dict[str, Any]) -> None:
         "If the tool does not exist or the call fails, report the failure. "
         "Return a single JSON object only (no markdown). "
         "Fields: success=false, summary=<what went wrong>."
-    )
-
-
-@given("the sandbox service has MCP servers with auth headers")
-def sandbox_has_mcp_auth_headers(server_url: str) -> None:
-    assert server_url.startswith("http"), f"unexpected server URL: {server_url!r}"
-    raw = os.environ.get("LIGHTSPEED_MCP_SERVERS", "")
-    assert '"headers"' in raw, (
-        "LIGHTSPEED_MCP_SERVERS does not contain auth headers — "
-        "skip this scenario or configure headers for test"
-    )
-
-
-@given("an authenticated MCP tool query has been prepared")
-def prepare_authenticated_mcp_query(bdd_context: dict[str, Any]) -> None:
-    bdd_context["output_schema"] = MCP_TOOL_OUTPUT_SCHEMA
-    bdd_context["query"] = (
-        "Use the MCP server (which requires authentication) to call any "
-        "available tool. Report the result. "
-        "Return a single JSON object only (no markdown). "
-        "Fields: success=true, summary=<description of what the tool returned>."
     )

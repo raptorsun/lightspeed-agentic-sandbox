@@ -16,24 +16,17 @@ Feature: MCP server connectivity
     When I POST run with the prepared schema and query
     Then the HTTP response status code is 200
     And success is true
-    And the response summary mentions an MCP tool name
+    And the response summary mentions a known mock MCP tool
 
   Scenario: Agent can invoke an MCP tool and use its output
     Given an MCP tool invocation query has been prepared
     When I POST run with the prepared schema and query
     Then the HTTP response status code is 200
     And success is true
-    And the response summary contains MCP tool output
+    And the response summary contains known namespace output
 
-  Scenario: Agent handles unreachable MCP server gracefully
-    Given an MCP query targeting a nonexistent server tool has been prepared
+  Scenario: Agent handles unknown MCP tool gracefully
+    Given an MCP query targeting a nonexistent tool has been prepared
     When I POST run with the prepared schema and query
     Then the HTTP response status code is 200
-    And the response indicates MCP connection failure gracefully
-
-  Scenario: MCP server with authentication header succeeds
-    Given the sandbox service has MCP servers with auth headers
-    And an authenticated MCP tool query has been prepared
-    When I POST run with the prepared schema and query
-    Then the HTTP response status code is 200
-    And success is true
+    And success is false

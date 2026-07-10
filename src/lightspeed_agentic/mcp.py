@@ -101,7 +101,11 @@ def parse_mcp_servers() -> list[ResolvedMCPServer]:
             logger.warning("Skipping invalid MCP server entry: %r", entry)
             continue
         resolved_headers: list[ResolvedMCPHeader] = []
-        for h in entry.get("headers", []):
+        raw_headers = entry.get("headers") or []
+        if not isinstance(raw_headers, list):
+            logger.warning("headers is not a list in server %r, skipping", entry["name"])
+            raw_headers = []
+        for h in raw_headers:
             if not isinstance(h, dict) or "name" not in h or "source" not in h:
                 logger.warning("Skipping invalid header in server %r: %r", entry.get("name"), h)
                 continue

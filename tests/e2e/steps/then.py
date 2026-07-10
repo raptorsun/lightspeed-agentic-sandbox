@@ -158,29 +158,25 @@ def assert_200_envelope(bdd_context: dict[str, Any]) -> None:
 
 # --- MCP assertions ---
 
+_KNOWN_MOCK_MCP_TOOLS = ("echo", "list_namespaces")
+_KNOWN_MOCK_NAMESPACES = ("default", "kube-system", "openshift-lightspeed", "openshift-monitoring")
 
-@then("the response summary mentions an MCP tool name")
-def assert_summary_mentions_mcp_tool(bdd_context: dict[str, Any]) -> None:
-    """Assert the summary contains at least one non-empty tool name."""
+
+@then("the response summary mentions a known mock MCP tool")
+def assert_summary_mentions_mock_tool(bdd_context: dict[str, Any]) -> None:
+    """Assert the summary contains at least one known mock MCP tool name."""
     body = bdd_context["response_body"]
-    summary = body.get("summary", "")
-    assert summary.strip(), f"summary is empty: {body!r}"
+    summary = body.get("summary", "").lower()
+    assert any(tool in summary for tool in _KNOWN_MOCK_MCP_TOOLS), (
+        f"summary does not mention any known MCP tool {_KNOWN_MOCK_MCP_TOOLS}: {summary!r}"
+    )
 
 
-@then("the response summary contains MCP tool output")
-def assert_summary_contains_tool_output(bdd_context: dict[str, Any]) -> None:
-    """Assert the summary references MCP tool output (non-trivial content)."""
+@then("the response summary contains known namespace output")
+def assert_summary_contains_namespace_output(bdd_context: dict[str, Any]) -> None:
+    """Assert the summary references at least one namespace from the mock MCP."""
     body = bdd_context["response_body"]
-    summary = body.get("summary", "")
-    assert len(summary) > 10, f"summary too short to contain tool output: {summary!r}"
-
-
-@then("the response indicates MCP connection failure gracefully")
-def assert_mcp_failure_graceful(bdd_context: dict[str, Any]) -> None:
-    """Assert the response has success=false or mentions failure without HTTP 500."""
-    res: RunHttpResult = bdd_context["http_result"]
-    assert res.status_code == 200, f"expected 200, got {res.status_code}"
-    body = bdd_context["response_body"]
-    assert "success" in body, body
-    assert "summary" in body, body
-    assert body["summary"], f"summary is empty: {body!r}"
+    summary = body.get("summary", "").lower()
+    assert any(ns in summary for ns in _KNOWN_MOCK_NAMESPACES), (
+        f"summary does not mention any known namespace {_KNOWN_MOCK_NAMESPACES}: {summary!r}"
+    )
