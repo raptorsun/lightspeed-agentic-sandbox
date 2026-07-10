@@ -40,18 +40,24 @@ def _resolve_header(header: dict) -> ResolvedMCPHeader | None:
     if source == "ServiceAccountToken":
         try:
             token = Path(SA_TOKEN_PATH).read_text().strip()
-        except FileNotFoundError:
+        except OSError:
             logger.warning("SA token not found at %s for header %s", SA_TOKEN_PATH, name)
             return None
         return ResolvedMCPHeader(name=name, value=f"Bearer {token}")
 
     if source == "Secret":
         secret_name = header.get("secretName", "")
-        secret_dir = Path(MCP_SECRET_MOUNT_ROOT) / secret_name
+        root = Path(MCP_SECRET_MOUNT_ROOT).resolve()
+        secret_dir = (root / secret_name).resolve()
+        if not secret_name or not secret_dir.is_relative_to(root):
+            logger.warning("Invalid secret path: %s for header %s", secret_dir, name)
+            return None
         if not secret_dir.is_dir():
             logger.warning("Secret dir not found: %s for header %s", secret_dir, name)
             return None
-        files = [f for f in secret_dir.iterdir() if f.is_file()]
+        files = sorted(
+            (f for f in secret_dir.iterdir() if f.is_file()), key=lambda f: f.name
+        )
         if not files:
             logger.warning("No files in secret dir %s for header %s", secret_dir, name)
             return None
@@ -83,8 +89,14 @@ def parse_mcp_servers() -> list[ResolvedMCPServer]:
 
     servers: list[ResolvedMCPServer] = []
     for entry in entries:
+        if not isinstance(entry, dict) or "name" not in entry or "url" not in entry:
+            logger.warning("Skipping invalid MCP server entry: %r", entry)
+            continue
         resolved_headers: list[ResolvedMCPHeader] = []
         for h in entry.get("headers", []):
+            if not isinstance(h, dict) or "name" not in h or "source" not in h:
+                logger.warning("Skipping invalid header in server %r: %r", entry.get("name"), h)
+                continue
             resolved = _resolve_header(h)
             if resolved is not None:
                 resolved_headers.append(resolved)
@@ -133,7 +145,7 @@ def to_gemini_mcp_toolsets(servers: list[ResolvedMCPServer]) -> list:
             headers=_headers_dict(s) if s.headers else None,
             timeout=float(s.timeout),
         )
-        toolsets.append(McpToolset(streamable_http_connection_params=params))
+        toolsets.append(McpToolset(connection_params=params))
     return toolsets
 
 

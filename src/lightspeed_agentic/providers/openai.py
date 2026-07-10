@@ -213,64 +213,73 @@ class OpenAIProvider(AgentProvider):
         manifest = _build_manifest(options.cwd)
 
         mcp_servers_list: list[Any] = []
+        mcp_manager = None
         if options.mcp_servers:
+            from agents.mcp import MCPServerManager
             from lightspeed_agentic.mcp import to_openai_mcp_servers
 
             mcp_servers_list = to_openai_mcp_servers(options.mcp_servers)
+            mcp_manager = MCPServerManager(mcp_servers_list)
+            await mcp_manager.__aenter__()
+            mcp_servers_list = mcp_manager.active_servers
 
-        agent_kwargs: dict[str, Any] = {
-            "name": "lightspeed",
-            "instructions": options.system_prompt,
-            "model": model,
-            "capabilities": capabilities,
-            "default_manifest": manifest,
-            "mcp_servers": mcp_servers_list,
-        }
+        try:
+            agent_kwargs: dict[str, Any] = {
+                "name": "lightspeed",
+                "instructions": options.system_prompt,
+                "model": model,
+                "capabilities": capabilities,
+                "default_manifest": manifest,
+                "mcp_servers": mcp_servers_list,
+            }
 
-        if options.output_schema:
-            agent_kwargs["output_type"] = _RawJsonSchema(options.output_schema)
+            if options.output_schema:
+                agent_kwargs["output_type"] = _RawJsonSchema(options.output_schema)
 
-        agent = SandboxAgent(**agent_kwargs)
+            agent = SandboxAgent(**agent_kwargs)
 
-        run_config = RunConfig(
-            sandbox=SandboxRunConfig(
-                client=UnixLocalSandboxClient(),
-            ),
-        )
+            run_config = RunConfig(
+                sandbox=SandboxRunConfig(
+                    client=UnixLocalSandboxClient(),
+                ),
+            )
 
-        result = Runner.run_streamed(
-            agent,
-            options.prompt,
-            max_turns=options.max_turns,
-            run_config=run_config,
-        )
+            result = Runner.run_streamed(
+                agent,
+                options.prompt,
+                max_turns=options.max_turns,
+                run_config=run_config,
+            )
 
-        async for event in result.stream_events():
-            if isinstance(event, RawResponsesStreamEvent):
-                if isinstance(event.data, ResponseTextDeltaEvent) and event.data.delta:
-                    yield TextDeltaEvent(text=event.data.delta)
-            elif isinstance(event, RunItemStreamEvent):
-                if isinstance(event.item, ToolCallItem):
-                    raw = event.item.raw_item
-                    name = (
-                        getattr(raw, "name", None)
-                        or (raw.get("name") if isinstance(raw, dict) else "")
-                        or ""
-                    )
-                    args = getattr(raw, "arguments", None) or ""
-                    yield ToolCallEvent(name=name, input=args[:TOOL_INPUT_MAX_CHARS])
-                elif isinstance(event.item, ToolCallOutputItem):
-                    yield ToolResultEvent(
-                        output=stringify(event.item.output)[:TOOL_OUTPUT_MAX_CHARS]
-                    )
+            async for event in result.stream_events():
+                if isinstance(event, RawResponsesStreamEvent):
+                    if isinstance(event.data, ResponseTextDeltaEvent) and event.data.delta:
+                        yield TextDeltaEvent(text=event.data.delta)
+                elif isinstance(event, RunItemStreamEvent):
+                    if isinstance(event.item, ToolCallItem):
+                        raw = event.item.raw_item
+                        name = (
+                            getattr(raw, "name", None)
+                            or (raw.get("name") if isinstance(raw, dict) else "")
+                            or ""
+                        )
+                        args = getattr(raw, "arguments", None) or ""
+                        yield ToolCallEvent(name=name, input=args[:TOOL_INPUT_MAX_CHARS])
+                    elif isinstance(event.item, ToolCallOutputItem):
+                        yield ToolResultEvent(
+                            output=stringify(event.item.output)[:TOOL_OUTPUT_MAX_CHARS]
+                        )
 
-        yield ContentBlockStopEvent()
+            yield ContentBlockStopEvent()
 
-        usage = result.context_wrapper.usage
+            usage = result.context_wrapper.usage
 
-        yield ResultEvent(
-            text=stringify(result.final_output),
-            cost_usd=0,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
-        )
+            yield ResultEvent(
+                text=stringify(result.final_output),
+                cost_usd=0,
+                input_tokens=usage.input_tokens,
+                output_tokens=usage.output_tokens,
+            )
+        finally:
+            if mcp_manager:
+                await mcp_manager.__aexit__(None, None, None)
