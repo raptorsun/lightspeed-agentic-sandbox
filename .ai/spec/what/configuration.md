@@ -20,12 +20,13 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
     Credentials are mounted via `envFrom` (all secret keys as env vars) AND as files at `/var/run/secrets/llm-credentials/`.
 
-    The operator also sets audit and observability env vars based on `AgenticOLSConfig`:
+    The operator also sets audit, observability, and MCP env vars:
 
     | Env var | Required | Description |
     |---|---|---|
     | `LIGHTSPEED_AUDIT_ENABLED` | No | When `"true"`, structured audit event logging is enabled. Default: disabled. |
     | `OTEL_EXPORTER_OTLP_ENDPOINT` | No | OTLP gRPC endpoint for span export (e.g. `jaeger-otlp-grpc.observability.svc:4317`). When absent, tracing is no-op. |
+    | `LIGHTSPEED_MCP_SERVERS` | No | JSON array of MCP server configs. See rule 20. When absent, no MCP servers are configured. |
 
 2. **Provider configuration mapping.** On startup, the sandbox MUST read the generic env vars from rule 1 and set the SDK-specific env vars required by each provider SDK. This mapping runs before the FastAPI app starts. The mapping logic:
 
@@ -75,6 +76,18 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
 19. **System packages — minimum expectations.** Runtime image includes Bash, Git, OpenShift CLI (`oc`), Kubernetes CLI (`kubectl`), ripgrep, and supporting OS utilities for debugging and archives per the container recipe. [PLANNED: OLS-3473] Node.js removed — was only needed for Claude Code CLI.
 
+20. **MCP server configuration.** When `LIGHTSPEED_MCP_SERVERS` is set, the sandbox MUST parse it as a JSON array of MCP server entries. Each entry has the shape `{"name": string, "url": string, "timeout": int, "headers": [{"name": string, "source": string, "secretName"?: string}]}`. `secretName` is REQUIRED when `source` is `Secret`; the sandbox MUST reject entries where `source` is `Secret` and `secretName` is missing or empty. The sandbox MUST build SDK-native MCP client configs from this array and pass them into provider adapters via `ProviderQueryOptions.mcp_servers` (see `provider-contract.md`). When the env var is absent or empty, no MCP servers are configured.
+
+21. **MCP header resolution.** For each header in an MCP server entry, the sandbox MUST resolve the value based on the `source` field:
+
+    | `source` | Resolution |
+    |---|---|
+    | `ServiceAccountToken` | Read the projected SA token from `/var/run/secrets/kubernetes.io/serviceaccount/token` and format as `Bearer <token>`. |
+    | `Secret` | Read the file at `/var/secrets/mcp/<secretName>/<secretName>` where `secretName` is the required `secretName` field on the header entry. The path is fully deterministic — no directory listing or "first file" heuristic. |
+    | `Client` | Skip — not resolved by the sandbox. Reserved for future client-passthrough flows. |
+
+22. **MCP transport.** The sandbox MUST use Streamable HTTP as the MCP transport when connecting to remote MCP servers. SSE transport (deprecated in MCP spec since 2025-03-26) MUST NOT be used for new connections.
+
 ## Configuration Surface
 
 | Variable / field | Role |
@@ -94,7 +107,10 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 | `OPENAI_BASE_URL` | Internal: OpenAI-compatible endpoint. Set by configuration mapping. |
 | `LIGHTSPEED_AUDIT_ENABLED` | Audit event logging toggle. Set by operator from `AgenticOLSConfig`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for span export. Set by operator from `AgenticOLSConfig`. |
+| `LIGHTSPEED_MCP_SERVERS` | JSON array of MCP server configs with URLs, timeouts, and header sources. Set by operator from `ToolsSpec.mcpServers` and auto-injected defaults. |
 | `/var/run/secrets/llm-credentials/` | LLM credential files mounted by operator (unconditional). |
+| `/var/run/secrets/kubernetes.io/serviceaccount/token` | Projected SA token for MCP `ServiceAccountToken` header resolution. |
+| `/var/secrets/mcp/<secretName>/` | MCP header secret files mounted by operator for `Secret`-sourced headers. |
 | `build_router(..., skills_dir=..., model=..., max_turns=..., default_timeout_ms=...)` | Library-level defaults when embedding the router. |
 
 ## Constraints
@@ -108,3 +124,4 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 - Remove Claude SDK (`claude-agent-sdk`, `@anthropic-ai/claude-code` binary, Node.js runtime) from container image and all config paths. Reroute `anthropic`, `vertex/anthropic`, `bedrock` to alternative agentic SDKs. [PLANNED: OLS-3473]
 - TLS termination, mTLS, and network policies for operator-to-sandbox traffic. [PLANNED: OLS-3038–OLS-3043]
 - Konflux pipeline and lockfile policy updates as Red Hat platform requirements evolve. [PLANNED: OLS-2894]
+- `Client` header source type resolution when client-passthrough MCP auth flows are implemented.
