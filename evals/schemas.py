@@ -3,7 +3,7 @@
 The ANALYSIS_WITH_COMPONENTS_SCHEMA is a best-effort approximation of the
 operator's AnalysisOutputSchema with a components array injected at
 options[].components — matching how mergeAgentOutputSchema works in
-lightspeed-agentic-operator/controller/proposal/schemas.go.
+lightspeed-agentic-operator/controller/agenticrun/schemas.go.
 
 Intentional divergences from the operator schema (eval-specific):
   - reversible is boolean here vs enum (Reversible/Irreversible/Partial) in CRD
@@ -38,7 +38,7 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
                         },
                         "required": ["summary", "confidence", "rootCause", "token"],
                     },
-                    "proposal": {
+                    "remediationPlan": {
                         "type": "object",
                         "properties": {
                             "description": {"type": "string"},
@@ -217,7 +217,7 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
                 "required": [
                     "title",
                     "diagnosis",
-                    "proposal",
+                    "remediationPlan",
                     "rbac",
                     "verification",
                     "components",

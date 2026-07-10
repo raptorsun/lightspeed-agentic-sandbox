@@ -249,7 +249,7 @@ def test_format_context_approved_option_with_actions() -> None:
             "approvedOption": {
                 "title": "Restart deployment",
                 "diagnosis": {"rootCause": "CrashLoopBackOff"},
-                "proposal": {
+                "remediationPlan": {
                     "description": "Roll out restart",
                     "risk": "low",
                     "reversible": True,
@@ -278,7 +278,7 @@ def test_format_context_approved_option_with_command() -> None:
             "approvedOption": {
                 "title": "Increase memory",
                 "diagnosis": {"rootCause": "OOMKilled"},
-                "proposal": {
+                "remediationPlan": {
                     "description": "Patch deployment",
                     "risk": "low",
                     "reversible": True,
@@ -303,7 +303,7 @@ def test_format_context_approved_option_without_actions() -> None:
             "approvedOption": {
                 "title": "Observe",
                 "diagnosis": {"rootCause": "Unknown"},
-                "proposal": {
+                "remediationPlan": {
                     "description": "Wait and collect logs",
                     "risk": "none",
                     "reversible": True,
@@ -325,7 +325,7 @@ def test_format_context_combined_fields() -> None:
             "approvedOption": {
                 "title": "Fix RBAC",
                 "diagnosis": {"rootCause": "missing role"},
-                "proposal": {
+                "remediationPlan": {
                     "description": "Apply RoleBinding",
                     "risk": "medium",
                     "reversible": False,
@@ -515,7 +515,11 @@ async def test_run_audit_phase_derivation(capsys: pytest.CaptureFixture[str]):
                     "approvedOption": {
                         "title": "fix",
                         "diagnosis": {"rootCause": "test"},
-                        "proposal": {"description": "test", "risk": "low", "reversible": True},
+                        "remediationPlan": {
+                            "description": "test",
+                            "risk": "low",
+                            "reversible": True,
+                        },
                     }
                 },
             },

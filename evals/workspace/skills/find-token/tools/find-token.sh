@@ -23,7 +23,7 @@ cat <<EOF
         "rootCause": "Verification requested by eval harness",
         "token": "DIAG_${DIAG_TOKEN}"
       },
-      "proposal": {
+      "remediationPlan": {
         "description": "Return the generated tokens for verification",
         "actions": [
           {"type": "verify", "description": "Generate cryptographic tokens"},
