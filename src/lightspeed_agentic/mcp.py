@@ -48,6 +48,9 @@ def _resolve_header(header: dict[str, str]) -> ResolvedMCPHeader | None:
 
     if source == "Secret":
         secret_name = header.get("secretName", "")
+        if not isinstance(secret_name, str):
+            logger.warning("secretName must be a string for header %s", name)
+            return None
         root = Path(MCP_SECRET_MOUNT_ROOT).resolve()
         secret_dir = (root / secret_name).resolve()
         if not secret_name or not secret_dir.is_relative_to(root):
@@ -112,11 +115,16 @@ def parse_mcp_servers() -> list[ResolvedMCPServer]:
             if resolved is not None:
                 resolved_headers.append(resolved)
 
+        timeout = entry.get("timeout", 60)
+        if not isinstance(timeout, (int, float)) or isinstance(timeout, bool):
+            logger.warning("Invalid timeout in server %r, using default", entry["name"])
+            timeout = 60
+
         servers.append(
             ResolvedMCPServer(
                 name=entry["name"],
                 url=entry["url"],
-                timeout=entry.get("timeout", 60),
+                timeout=timeout,
                 headers=resolved_headers,
             )
         )
@@ -167,7 +175,7 @@ def to_openai_mcp_servers(servers: list[ResolvedMCPServer]) -> list[Any]:
 
     result: list[Any] = []
     for s in servers:
-        params = MCPServerStreamableHttpParams(url=s.url)
+        params = MCPServerStreamableHttpParams(url=s.url, timeout=float(s.timeout))
         if s.headers:
             params["headers"] = _headers_dict(s)
         result.append(MCPServerStreamableHttp(params=params, name=s.name))
