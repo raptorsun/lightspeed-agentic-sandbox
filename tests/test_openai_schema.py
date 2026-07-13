@@ -1,7 +1,7 @@
 """Tests for OpenAI provider strict schema transform."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -209,3 +209,97 @@ def test_build_manifest_skips_e2e_output_dir_outside_temp(
 
     manifest = _build_manifest("/app/skills")
     assert manifest.extra_path_grants == ()
+
+
+async def _empty_stream():
+    return
+    yield
+
+
+@pytest.mark.asyncio
+async def test_skills_path_set_to_skills_agents(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Skills capability must use skills_path='skills/.agents', not the SDK default."""
+    monkeypatch.delenv("E2E_OUTPUT_DIR", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+
+    from lightspeed_agentic.providers.openai import OpenAIProvider
+    from lightspeed_agentic.types import ProviderQueryOptions
+
+    mock_agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.stream_events = _empty_stream
+    mock_result.final_output = ""
+    mock_result.context_wrapper.usage.input_tokens = 0
+    mock_result.context_wrapper.usage.output_tokens = 0
+
+    with (
+        patch("agents.sandbox.SandboxAgent", return_value=mock_agent) as mock_cls,
+        patch("agents.Runner.run_streamed", return_value=mock_result),
+        patch("agents.models.openai_responses.OpenAIResponsesModel"),
+        patch("openai.AsyncOpenAI"),
+    ):
+        provider = OpenAIProvider()
+        options = ProviderQueryOptions(
+            prompt="test",
+            system_prompt="you are a test agent",
+            model="gpt-4.1-mini",
+            max_turns=1,
+            max_budget_usd=0.0,
+            allowed_tools=[],
+            cwd=str(tmp_path),
+        )
+        async for _ in provider.query(options):
+            pass
+
+        capabilities = mock_cls.call_args.kwargs["capabilities"]
+
+        from agents.sandbox.capabilities import Skills
+
+        skills_caps = [c for c in capabilities if isinstance(c, Skills)]
+        assert len(skills_caps) == 1
+        assert skills_caps[0].skills_path == "skills/.agents"
+
+
+@pytest.mark.asyncio
+async def test_skills_path_missing_dir_does_not_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Provider completes without error when skills/.agents doesn't exist under cwd."""
+    monkeypatch.delenv("E2E_OUTPUT_DIR", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+
+    from lightspeed_agentic.providers.openai import OpenAIProvider
+    from lightspeed_agentic.types import ProviderQueryOptions
+
+    mock_agent = MagicMock()
+    mock_result = MagicMock()
+    mock_result.stream_events = _empty_stream
+    mock_result.final_output = ""
+    mock_result.context_wrapper.usage.input_tokens = 0
+    mock_result.context_wrapper.usage.output_tokens = 0
+
+    assert not (tmp_path / "skills" / ".agents").exists()
+
+    with (
+        patch("agents.sandbox.SandboxAgent", return_value=mock_agent),
+        patch("agents.Runner.run_streamed", return_value=mock_result),
+        patch("agents.models.openai_responses.OpenAIResponsesModel"),
+        patch("openai.AsyncOpenAI"),
+    ):
+        provider = OpenAIProvider()
+        options = ProviderQueryOptions(
+            prompt="test",
+            system_prompt="you are a test agent",
+            model="gpt-4.1-mini",
+            max_turns=1,
+            max_budget_usd=0.0,
+            allowed_tools=[],
+            cwd=str(tmp_path),
+        )
+        from lightspeed_agentic.types import ContentBlockStopEvent, ResultEvent
+
+        events = [e async for e in provider.query(options)]
+        assert any(isinstance(e, ContentBlockStopEvent) for e in events)
+        assert any(isinstance(e, ResultEvent) for e in events)

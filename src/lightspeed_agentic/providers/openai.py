@@ -206,7 +206,8 @@ class OpenAIProvider(AgentProvider):
             Skills(
                 lazy_from=LocalDirLazySkillSource(
                     source=LocalDir(src=Path(options.cwd)),
-                )
+                ),
+                skills_path="skills/.agents",
             ),
         ]
 
