@@ -10,6 +10,7 @@ import json
 import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 from lightspeed_agentic.types import (
     TOOL_INPUT_MAX_CHARS,
@@ -87,17 +88,27 @@ class ClaudeProvider(AgentProvider):
                 "schema": options.output_schema,
             }
 
+        mcp_servers: dict[str, Any] = {}
+        allowed_tools = list(options.allowed_tools)
+        if options.mcp_servers:
+            from lightspeed_agentic.mcp import to_claude_mcp_config
+
+            mcp_servers = to_claude_mcp_config(options.mcp_servers)
+            for server_name in mcp_servers:
+                allowed_tools.append(f"mcp__{server_name}__*")
+
         sdk_options = ClaudeAgentOptions(
             model=options.model,
             max_turns=options.max_turns,
             max_budget_usd=options.max_budget_usd,
             system_prompt=options.system_prompt,
-            allowed_tools=options.allowed_tools,
+            allowed_tools=allowed_tools,
             permission_mode="bypassPermissions",
             cwd=effective_cwd,
             skills="all",
             include_partial_messages=True,
             output_format=output_format,
+            mcp_servers=mcp_servers,
         )
 
         _tool_name = ""

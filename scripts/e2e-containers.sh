@@ -67,8 +67,10 @@ fi
 
 NAME=""
 SERVER_PID=""
+MCP_SERVER_PID=""
 E2E_SKILLS_WORKDIR=""
 E2E_HOST_PORT_ACTIVE=""
+MCP_PORT="${E2E_MCP_PORT:-19090}"
 
 # Container-created files may be owned by mapped UIDs (rootless podman).
 # Try plain rm first, fall back to runtime unshare.
@@ -190,7 +192,42 @@ _stop_host_uvicorn() {
     fi
 }
 
+_stop_mock_mcp() {
+    if [[ -n "${MCP_SERVER_PID:-}" ]]; then
+        kill "${MCP_SERVER_PID}" 2>/dev/null || true
+        wait "${MCP_SERVER_PID}" 2>/dev/null || true
+        MCP_SERVER_PID=""
+    fi
+}
+
+_start_mock_mcp() {
+    echo "e2e: starting mock MCP server on :${MCP_PORT}..."
+    "${UV}" run python tests/e2e/mock_mcp_server.py --port "${MCP_PORT}" &
+    MCP_SERVER_PID=$!
+    sleep 0.5
+    if ! kill -0 "${MCP_SERVER_PID}" 2>/dev/null; then
+        echo "e2e: mock MCP server failed to start on port ${MCP_PORT}" >&2
+        exit 1
+    fi
+    local attempt
+    for attempt in $(seq 1 10); do
+        if curl -sf -o /dev/null -X POST "http://127.0.0.1:${MCP_PORT}/mcp" \
+            -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"e2e","version":"1.0"}},"id":1}' 2>/dev/null; then
+            echo "e2e: mock MCP server ready"
+            break
+        fi
+        if [ "${attempt}" -eq 10 ]; then
+            echo "e2e: timeout waiting for mock MCP server" >&2
+            exit 1
+        fi
+        sleep 0.5
+    done
+    export LIGHTSPEED_MCP_SERVERS="[{\"name\":\"mock-ocp-mcp\",\"url\":\"http://127.0.0.1:${MCP_PORT}/mcp\"}]"
+}
+
 cleanup() {
+    _stop_mock_mcp
     if [[ -n "${E2E_HOST_PORT_ACTIVE:-}" ]]; then
         _stop_host_uvicorn "${E2E_HOST_PORT_ACTIVE}"
         E2E_HOST_PORT_ACTIVE=""
@@ -408,6 +445,9 @@ run_one_host() {
 
     _assert_host_port_available "${host_port}" || exit 1
     E2E_HOST_PORT_ACTIVE="${host_port}"
+
+    _start_mock_mcp
+
     echo "e2e: model LIGHTSPEED_MODEL=${LIGHTSPEED_MODEL:-} OPENAI_MODEL=${OPENAI_MODEL:-} ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}"
     echo "e2e: E2E_OUTPUT_DIR=${E2E_OUTPUT_DIR}"
     echo "e2e: starting uvicorn (host) for ${provider} (image provider=${agent_provider}) on :${host_port}..."
@@ -472,6 +512,13 @@ run_one() {
 
     prepare_e2e_skills_workspace
 
+    _start_mock_mcp
+    # For container mode, resolve host gateway so the container can reach the mock MCP
+    local host_gateway
+    host_gateway="$("${RUNTIME}" network inspect bridge --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null || echo "host.containers.internal")"
+    local container_mcp_url="http://${host_gateway}:${MCP_PORT}/mcp"
+    local container_mcp_env="[{\"name\":\"mock-ocp-mcp\",\"url\":\"${container_mcp_url}\"}]"
+
     sync_provider_model "${provider}"
     echo "e2e: model LIGHTSPEED_MODEL=${LIGHTSPEED_MODEL:-} OPENAI_MODEL=${OPENAI_MODEL:-} ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}"
 
@@ -499,6 +546,7 @@ run_one() {
         -e LIGHTSPEED_PROVIDER_REGION="${VERTEX_REGION:-}" \
         -e LIGHTSPEED_SKILLS_DIR="/app/skills" \
         -e E2E_OUTPUT_DIR="/tmp/lightspeed-e2e-output" \
+        -e LIGHTSPEED_MCP_SERVERS="${container_mcp_env}" \
         -e ANTHROPIC_API_KEY \
         -e OPENAI_API_KEY \
         -e AWS_ACCESS_KEY_ID \

@@ -16,6 +16,7 @@ from opentelemetry import context as otel_context
 
 from lightspeed_agentic.audit import AuditLogger, derive_phase
 from lightspeed_agentic.logging import EventLogger
+from lightspeed_agentic.mcp import ResolvedMCPServer
 from lightspeed_agentic.routes.models import RunRequest, RunResponse
 from lightspeed_agentic.tools import DEFAULT_ALLOWED_TOOLS
 from lightspeed_agentic.tracing import get_tracer, parse_traceparent
@@ -67,6 +68,7 @@ def register_query_routes(
     max_turns: int,
     default_timeout_ms: int,
     audit_enabled: bool = False,
+    mcp_servers: list[ResolvedMCPServer] | None = None,
 ) -> None:
     async def run_endpoint(req: RunRequest, request: Request) -> RunResponse:
         timeout = req.timeout_ms if req.timeout_ms is not None else default_timeout_ms
@@ -124,6 +126,7 @@ def register_query_routes(
                             allowed_tools=DEFAULT_ALLOWED_TOOLS,
                             cwd=skills_dir,
                             output_schema=req.outputSchema,
+                            mcp_servers=mcp_servers or [],
                         )
                     )
                     async for event in result:
