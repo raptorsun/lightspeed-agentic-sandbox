@@ -11,6 +11,7 @@ Intentional divergences from the operator schema (eval-specific):
   - diagnosis/components include token sentinels for eval verification
 
 Aligned with operator schema: openshift/lightspeed-agentic-operator#162
+Updated for OLS-3422: added top-level actionRequired + diagnosis, options minItems 0
 """
 
 from __future__ import annotations
@@ -20,9 +21,26 @@ from typing import Any
 ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
+        "actionRequired": {
+            "type": "boolean",
+            "description": (
+                "Whether remediation action is required."
+                " Set to false when the issue is a false alarm or already self-healed."
+            ),
+        },
+        "diagnosis": {
+            "type": "object",
+            "description": "Top-level root cause analysis. Required when actionRequired is false.",
+            "properties": {
+                "summary": {"type": "string"},
+                "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+                "rootCause": {"type": "string"},
+            },
+            "required": ["summary", "confidence", "rootCause"],
+        },
         "options": {
             "type": "array",
-            "minItems": 1,
+            "minItems": 0,
             "items": {
                 "type": "object",
                 "properties": {
@@ -225,5 +243,20 @@ ANALYSIS_WITH_COMPONENTS_SCHEMA: dict[str, Any] = {
             },
         },
     },
-    "required": ["options"],
+    "required": ["actionRequired", "options"],
+    "allOf": [
+        {
+            "if": {
+                "properties": {"actionRequired": {"const": False}},
+                "required": ["actionRequired"],
+            },
+            "then": {
+                "required": ["actionRequired", "options", "diagnosis"],
+                "properties": {"options": {"maxItems": 0}},
+            },
+            "else": {
+                "properties": {"options": {"minItems": 1}},
+            },
+        },
+    ],
 }
