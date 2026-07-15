@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -11,9 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from lightspeed_agentic.routes import _resolve_router_model, build_router, resolve_startup_model
 from lightspeed_agentic.routes.query import _format_context_prefix
 from lightspeed_agentic.types import (
-    ContentBlockStopEvent,
     ResultEvent,
-    TextDeltaEvent,
     ToolCallEvent,
     ToolResultEvent,
 )
@@ -403,38 +399,29 @@ def test_resolve_router_model_uses_default_when_unset(
 
 
 @pytest.mark.asyncio
-async def test_run_emits_audit_events_when_enabled(capsys: pytest.CaptureFixture[str]):
-    """When audit is enabled, started and completed events are emitted."""
+async def test_run_with_audit_enabled_succeeds():
+    """When audit is enabled, request completes without error."""
+    app = _make_audit_app(MockProvider())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/v1/agent/run", json={"query": "test"})
+        assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_run_no_audit_json_when_enabled(capsys: pytest.CaptureFixture[str]):
+    """Audit no longer emits JSON lines — data flows through OTel spans only."""
     app = _make_audit_app(MockProvider())
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/v1/agent/run", json={"query": "test"})
         assert resp.status_code == 200
     out = capsys.readouterr().out
-    events = [json.loads(line) for line in out.strip().splitlines() if line.strip().startswith("{")]
-    event_types = [e["event"] for e in events]
-    assert "audit.agent.started" in event_types
-    assert "audit.agent.completed" in event_types
-    for e in events:
-        assert e["level"] == "audit"
-        assert "trace_id" in e
-        assert "phase" in e
-
-
-@pytest.mark.asyncio
-async def test_run_no_audit_events_when_disabled(capsys: pytest.CaptureFixture[str]):
-    """Default (audit disabled) emits no audit events."""
-    app = _make_app(MockProvider())
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post("/v1/agent/run", json={"query": "test"})
-        assert resp.status_code == 200
-    out = capsys.readouterr().out
-    audit_lines = [line for line in out.splitlines() if '"audit.agent.' in line]
+    audit_lines = [line for line in out.splitlines() if "audit.agent." in line]
     assert audit_lines == []
 
 
 @pytest.mark.asyncio
-async def test_run_audit_with_tool_events(capsys: pytest.CaptureFixture[str]):
-    """Audit logger captures tool call and result events."""
+async def test_run_audit_with_tool_events():
+    """Audit logger handles tool events without error."""
     events_seq = [
         ToolCallEvent(name="bash", input="ls"),
         ToolResultEvent(output="file.txt"),
@@ -449,83 +436,4 @@ async def test_run_audit_with_tool_events(capsys: pytest.CaptureFixture[str]):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/v1/agent/run", json={"query": "test"})
         assert resp.status_code == 200
-    out = capsys.readouterr().out
-    events = [json.loads(line) for line in out.strip().splitlines() if line.strip().startswith("{")]
-    event_types = [e["event"] for e in events]
-    assert "audit.agent.tool.call" in event_types
-    assert "audit.agent.tool.result" in event_types
-
-
-@pytest.mark.asyncio
-async def test_run_audit_with_text_buffering(capsys: pytest.CaptureFixture[str]):
-    """Text deltas are buffered and emitted as audit.agent.text on block stop."""
-    events_seq = [
-        TextDeltaEvent(text="hello "),
-        TextDeltaEvent(text="world"),
-        ContentBlockStopEvent(),
-        ResultEvent(
-            text='{"success": true, "summary": "done"}', cost_usd=0, input_tokens=0, output_tokens=0
-        ),
-    ]
-    app = _make_audit_app(MockProvider(events=events_seq))
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post("/v1/agent/run", json={"query": "test"})
-        assert resp.status_code == 200
-    out = capsys.readouterr().out
-    events = [json.loads(line) for line in out.strip().splitlines() if line.strip().startswith("{")]
-    text_events = [e for e in events if e["event"] == "audit.agent.text"]
-    assert len(text_events) == 1
-    assert text_events[0]["text"] == "hello world"
-
-
-@pytest.mark.asyncio
-async def test_run_audit_completed_captures_token_counts(capsys: pytest.CaptureFixture[str]):
-    """Completed event carries input_tokens and output_tokens from ResultEvent."""
-    events_seq = [
-        ResultEvent(
-            text='{"success": true, "summary": "done"}',
-            cost_usd=0.05,
-            input_tokens=42,
-            output_tokens=17,
-        ),
-    ]
-    app = _make_audit_app(MockProvider(events=events_seq))
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post("/v1/agent/run", json={"query": "test"})
-        assert resp.status_code == 200
-    out = capsys.readouterr().out
-    events = [json.loads(line) for line in out.strip().splitlines() if line.strip().startswith("{")]
-    completed = [e for e in events if e["event"] == "audit.agent.completed"]
-    assert len(completed) == 1
-    assert completed[0]["input_tokens"] == 42
-    assert completed[0]["output_tokens"] == 17
-    assert completed[0]["cost_usd"] == 0.05
-
-
-@pytest.mark.asyncio
-async def test_run_audit_phase_derivation(capsys: pytest.CaptureFixture[str]):
-    """Phase is derived from context fields."""
-    app = _make_audit_app(MockProvider())
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(
-            "/v1/agent/run",
-            json={
-                "query": "test",
-                "context": {
-                    "approvedOption": {
-                        "title": "fix",
-                        "diagnosis": {"rootCause": "test"},
-                        "remediationPlan": {
-                            "description": "test",
-                            "risk": "low",
-                            "reversible": True,
-                        },
-                    }
-                },
-            },
-        )
-        assert resp.status_code == 200
-    out = capsys.readouterr().out
-    events = [json.loads(line) for line in out.strip().splitlines() if line.strip().startswith("{")]
-    for e in events:
-        assert e["phase"] == "execution"
+        assert resp.json()["success"] is True

@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from lightspeed_agentic.mcp import ResolvedMCPServer
 
-TOOL_INPUT_MAX_CHARS = 300
-TOOL_OUTPUT_MAX_CHARS = 500
 DEFAULT_MODEL = "claude-opus-4-6"
 
 
@@ -44,12 +42,14 @@ class ToolCallEvent:
     type: Literal["tool_call"] = field(default="tool_call", init=False)
     name: str = ""
     input: str = ""
+    call_id: str = ""
 
 
 @dataclass(frozen=True)
 class ToolResultEvent:
     type: Literal["tool_result"] = field(default="tool_result", init=False)
     output: str = ""
+    call_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -59,6 +59,8 @@ class ResultEvent:
     cost_usd: float = 0.0
     input_tokens: int = 0
     output_tokens: int = 0
+    reasoning_tokens: int = 0
+    response_model: str = ""
 
 
 ProviderEvent = (

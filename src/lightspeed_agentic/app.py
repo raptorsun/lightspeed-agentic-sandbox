@@ -23,11 +23,12 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 logger = logging.getLogger(__name__)
 
 audit_enabled = os.environ.get("LIGHTSPEED_AUDIT_ENABLED", "").strip().lower() == "true"
+capture_content = os.environ.get("LIGHTSPEED_CAPTURE_CONTENT", "").strip().lower() == "true"
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    init_tracer()
+    init_tracer(audit_enabled=audit_enabled)
     yield
     shutdown_tracer()
 
@@ -38,17 +39,19 @@ sdk = resolve_sdk()
 provider = create_provider(sdk.name)
 startup_model = resolve_startup_model(sdk.name)
 logger.info(
-    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s, audit=%s)",
+    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s, audit=%s, capture_content=%s)",
     sdk.name,
     startup_model,
     os.environ.get("LIGHTSPEED_MODEL", ""),
     audit_enabled,
+    capture_content,
 )
 router = build_router(
     provider,
     skills_dir=os.environ.get("LIGHTSPEED_SKILLS_DIR", "/app/skills"),
     model=startup_model,
     audit_enabled=audit_enabled,
+    capture_content=capture_content,
 )
 app.include_router(router, prefix="/v1/agent")
 

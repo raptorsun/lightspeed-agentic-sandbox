@@ -72,6 +72,12 @@ class TestInitTracer:
         tracer = get_tracer()
         assert tracer is not None
 
+    def test_init_with_audit_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        init_tracer(audit_enabled=True)
+        tracer = get_tracer()
+        assert tracer is not None
+
     def test_get_tracer_returns_named_tracer(self) -> None:
         tracer = get_tracer()
         assert isinstance(tracer, trace.Tracer)

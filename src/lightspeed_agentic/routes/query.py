@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from opentelemetry import context as otel_context
+from opentelemetry import trace
+from opentelemetry.trace import SpanKind
 
 from lightspeed_agentic.audit import AuditLogger, derive_phase
 from lightspeed_agentic.logging import EventLogger
@@ -70,6 +72,7 @@ def register_query_routes(
     max_turns: int,
     default_timeout_ms: int,
     audit_enabled: bool = False,
+    capture_content: bool = False,
     mcp_servers: list[ResolvedMCPServer] | None = None,
 ) -> None:
     def _record_metrics(*, in_tokens: int, out_tokens: int, elapsed: float) -> None:
@@ -103,16 +106,18 @@ def register_query_routes(
             prompt = f"{prefix}\n\n{req.query}"
 
         traceparent = request.headers.get("traceparent")
+        agenticrun_uid = request.headers.get("x-agenticrun-uid", "")
         trace_id, trace_ctx = parse_traceparent(traceparent)
         tracer = get_tracer()
 
         phase = derive_phase(req.context)
         audit_logger = AuditLogger(
-            trace_id=trace_id,
             phase=phase,
             model=model,
             provider=provider.name,
-            log_enabled=audit_enabled,
+            enabled=audit_enabled,
+            capture_content=capture_content,
+            agenticrun_uid=agenticrun_uid,
         )
 
         logger.info(
@@ -124,23 +129,40 @@ def register_query_routes(
 
         start_time = time.monotonic()
 
+        text = ""
+        cost = 0.0
+        input_tokens = 0
+        output_tokens = 0
+        reasoning_tokens = 0
+        response_model = ""
+
+        otel_provider_name = {"claude": "anthropic", "gemini": "google"}.get(
+            provider.name, provider.name
+        )
+        span_attrs: dict[str, Any] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.request.model": model,
+            "gen_ai.provider.name": otel_provider_name,
+            "agenticrun.phase": phase,
+        }
+        if agenticrun_uid:
+            span_attrs["agenticrun.uid"] = agenticrun_uid
+        chat_span = tracer.start_span(
+            f"chat {model}",
+            kind=SpanKind.CLIENT,
+            context=trace_ctx,
+            attributes=span_attrs,
+        )
+        span_ctx = trace.set_span_in_context(chat_span)
+        audit_logger.set_parent_context(span_ctx)
+
+        response: RunResponse
         try:
-            text = ""
-            cost = 0.0
-            input_tokens = 0
-            output_tokens = 0
-            event_logger = EventLogger("run")
 
             async def run() -> None:
-                nonlocal text, cost, input_tokens, output_tokens
-                with tracer.start_as_current_span(
-                    "agent.run",
-                    context=trace_ctx,
-                    attributes={"model": model, "provider": provider.name},
-                ):
-                    # Pass the current context to AuditLogger so tool spans
-                    # are correctly parented under agent.run
-                    audit_logger.set_parent_context(otel_context.get_current())
+                nonlocal text, cost, input_tokens, output_tokens, reasoning_tokens, response_model
+                token = otel_context.attach(span_ctx)
+                try:
                     result = provider.query(
                         ProviderQueryOptions(
                             prompt=prompt,
@@ -154,6 +176,7 @@ def register_query_routes(
                             mcp_servers=mcp_servers or [],
                         )
                     )
+                    event_logger = EventLogger("run")
                     async for event in result:
                         event_logger.log(event)
                         audit_logger.process_event(event)
@@ -162,7 +185,11 @@ def register_query_routes(
                             cost = event.cost_usd
                             input_tokens = event.input_tokens
                             output_tokens = event.output_tokens
+                            reasoning_tokens = event.reasoning_tokens
+                            response_model = event.response_model
                             break
+                finally:
+                    otel_context.detach(token)
 
             await asyncio.wait_for(run(), timeout=timeout / 1000)
 
@@ -172,64 +199,72 @@ def register_query_routes(
                 input_tokens=0,
                 output_tokens=0,
                 cost_usd=0,
+                span=chat_span,
             )
-            _record_metrics(in_tokens=0, out_tokens=0, elapsed=time.monotonic() - start_time)
-            return RunResponse(success=False, summary=f"Agent timed out after {timeout}ms")
+            response = RunResponse(success=False, summary=f"Agent timed out after {timeout}ms")
+            return response
         except Exception as e:
             audit_logger.complete(
                 success=False,
                 input_tokens=0,
                 output_tokens=0,
                 cost_usd=0,
+                span=chat_span,
             )
-            _record_metrics(in_tokens=0, out_tokens=0, elapsed=time.monotonic() - start_time)
             logger.exception("[agent] query error")
-            return RunResponse(success=False, summary=f"Agent error: {e}")
+            response = RunResponse(success=False, summary=f"Agent error: {e}")
+            return response
+        else:
+            if not text:
+                audit_logger.complete(
+                    success=False,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    reasoning_tokens=reasoning_tokens,
+                    cost_usd=cost,
+                    response_model=response_model,
+                    span=chat_span,
+                )
+                response = RunResponse(success=False, summary="Agent returned empty response")
+                return response
 
-        if not text:
+            try:
+                parsed = json.loads(text)
+                if not isinstance(parsed, dict):
+                    raise TypeError("expected dict")
+                success = parsed.get("success", True)
+            except (json.JSONDecodeError, TypeError):
+                parsed = None
+                success = True
+
             audit_logger.complete(
-                success=False,
+                success=success,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                reasoning_tokens=reasoning_tokens,
                 cost_usd=cost,
+                response_model=response_model,
+                span=chat_span,
             )
+
+            if parsed is not None:
+                logger.info("[agent] query complete: success=%s, cost=$%.4f", success, cost)
+                response = RunResponse(
+                    success=success,
+                    summary=parsed.get("summary", text),
+                    **{k: v for k, v in parsed.items() if k not in ("success", "summary")},
+                )
+                return response
+
+            logger.info("[agent] query complete (text response), cost=$%.4f", cost)
+            response = RunResponse(success=True, summary=text)
+            return response
+        finally:
+            chat_span.end()
             _record_metrics(
                 in_tokens=input_tokens,
                 out_tokens=output_tokens,
                 elapsed=time.monotonic() - start_time,
             )
-            return RunResponse(success=False, summary="Agent returned empty response")
-
-        try:
-            parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                raise TypeError("expected dict")
-            success = parsed.get("success", True)
-        except (json.JSONDecodeError, TypeError):
-            parsed = None
-            success = True
-
-        audit_logger.complete(
-            success=success,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cost_usd=cost,
-        )
-        _record_metrics(
-            in_tokens=input_tokens,
-            out_tokens=output_tokens,
-            elapsed=time.monotonic() - start_time,
-        )
-
-        if parsed is not None:
-            logger.info("[agent] query complete: success=%s, cost=$%.4f", success, cost)
-            return RunResponse(
-                success=success,
-                summary=parsed.get("summary", text),
-                **{k: v for k, v in parsed.items() if k not in ("success", "summary")},
-            )
-
-        logger.info("[agent] query complete (text response), cost=$%.4f", cost)
-        return RunResponse(success=True, summary=text)
 
     router.add_api_route("/run", run_endpoint, methods=["POST"], response_model=RunResponse)

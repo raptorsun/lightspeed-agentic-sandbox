@@ -4,11 +4,19 @@ from __future__ import annotations
 
 import os
 import secrets
+import sys
+from collections.abc import Sequence
 
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 
 _SERVICE_NAME = "lightspeed-agentic-sandbox"
@@ -16,14 +24,34 @@ _TRACER_NAME = "lightspeed_agentic"
 _tracer_provider: TracerProvider | None = None
 
 
-def init_tracer() -> None:
+class OTLPJsonStdoutExporter(SpanExporter):
+    """Exports spans as OTLP JSON wire format to stdout (one line per batch)."""
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        import json as _json
+
+        from google.protobuf.json_format import MessageToDict  # type: ignore[import-untyped]
+        from opentelemetry.exporter.otlp.proto.common.trace_encoder import encode_spans
+
+        pb = encode_spans(spans)
+        line = _json.dumps(MessageToDict(pb, preserving_proto_field_name=True))
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+        return SpanExportResult.SUCCESS
+
+    def shutdown(self) -> None:
+        pass
+
+
+def init_tracer(*, audit_enabled: bool = False) -> None:
     global _tracer_provider
     resource = Resource.create({"service.name": _SERVICE_NAME})
     _tracer_provider = TracerProvider(resource=resource)
+    if audit_enabled:
+        _tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPJsonStdoutExporter()))
     endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
     if endpoint:
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
         exporter = OTLPSpanExporter(endpoint=endpoint, insecure=not endpoint.startswith("https"))
         _tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
