@@ -40,7 +40,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 17. **ProviderQueryOptions — `mcp_servers`.** Optional list of resolved MCP server configs. Each entry carries `name`, `url`, `timeout`, and a `headers` dict of resolved header name-value pairs. When non-empty, adapters MUST wire these servers into their SDK's native MCP client mechanism (see rules 31–33). When empty or absent, no MCP servers are configured.
 
-18. **ProviderQueryOptions — `reasoning_config`.** Optional dict (JSON object). When present, adapters MUST map it to their SDK's native reasoning/thinking parameters. When absent or `None`, adapters MUST NOT set any reasoning parameters and SDK defaults apply. Contents are provider- and model-specific; the adapter picks the keys it understands and passes them through. Invalid keys or values are rejected by the SDK/API at invocation time, not by the adapter.
+18. **ProviderQueryOptions — `reasoning_config`.** Optional dict (JSON object). When present, adapters MUST map it to their SDK's native reasoning/thinking parameters. When absent or `None`, adapters MUST NOT set any reasoning parameters and SDK defaults apply. Contents are provider- and model-specific; each adapter picks the keys it recognizes and maps them to SDK parameters — unrecognized keys are silently ignored. Invalid values on recognized keys are rejected by the upstream SDK/API at invocation time, not by the adapter.
 
 19. **Reasoning — Claude.** When `reasoning_config` is present, the Claude adapter MUST map it to `ClaudeAgentOptions` fields: `thinking` (dict with `type`, optional `budget_tokens`) and/or `effort` (string: `low`/`medium`/`high`/`max`). The adapter reads these keys directly from `reasoning_config` and passes them to the SDK constructor.
 
@@ -83,7 +83,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 ## Constraints
 
-- Not every adapter emits `thinking_delta` when reasoning is unconfigured; absence does not imply failure. When `reasoning_config` is set and includes thinking output options, the adapter SHOULD emit `thinking_delta` events if the SDK provides them.
+- Not every adapter emits `thinking_delta` when reasoning is unconfigured; absence does not imply failure. When `reasoning_config` is set and the SDK produces reasoning output, the adapter MUST emit `thinking_delta` events (per rule 3).
 - Cost fields on `result` may be zero where the SDK does not report usage or price.
 
 ## Planned Changes
