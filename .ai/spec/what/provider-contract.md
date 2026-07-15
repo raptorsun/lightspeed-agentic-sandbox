@@ -10,7 +10,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 2. **Text delta (`text_delta`).** Carries incremental natural-language or assistant text chunks for logging or streaming use.
 
-3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text where the SDK exposes it.
+3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text. When reasoning is configured and the SDK produces reasoning output, all adapters MUST emit `thinking_delta` events. Claude emits from `thinking_delta` stream events. Gemini MUST emit from `ThinkingConfig` thought parts when `include_thoughts` is enabled. OpenAI MUST emit from reasoning items in the response stream.
 
 4. **Content block stop (`content_block_stop`).** Signals that a content or tool block has completed; used by logging to flush buffered thinking.
 
@@ -38,31 +38,39 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 16. **ProviderQueryOptions — `stream`.** When true, adapters that support partial streaming should yield deltas; when false, they may batch. The HTTP `POST /run` path does not set this flag from the request body.
 
-17. **ProviderQueryOptions — `mcp_servers`.** Optional list of resolved MCP server configs. Each entry carries `name`, `url`, `timeout`, and a `headers` dict of resolved header name-value pairs. When non-empty, adapters MUST wire these servers into their SDK's native MCP client mechanism (see rules 27–29). When empty or absent, no MCP servers are configured.
+17. **ProviderQueryOptions — `mcp_servers`.** Optional list of resolved MCP server configs. Each entry carries `name`, `url`, `timeout`, and a `headers` dict of resolved header name-value pairs. When non-empty, adapters MUST wire these servers into their SDK's native MCP client mechanism (see rules 31–33). When empty or absent, no MCP servers are configured.
 
-18. **Thin-adapter principle.** Providers MUST delegate tool execution, command invocation, and skill discovery to their SDKs. Adapters MUST NOT implement custom tool executors that duplicate SDK behavior except for minimal glue (e.g., auto-confirm, path layout).
+18. **ProviderQueryOptions — `reasoning_config`.** Optional dict (JSON object). When present, adapters MUST map it to their SDK's native reasoning/thinking parameters. When absent or `None`, adapters MUST NOT set any reasoning parameters and SDK defaults apply. Contents are provider- and model-specific; the adapter picks the keys it understands and passes them through. Invalid keys or values are rejected by the SDK/API at invocation time, not by the adapter.
 
-19. **Structured output.** When `output_schema` is set: Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI's strict mode requires.
+19. **Reasoning — Claude.** When `reasoning_config` is present, the Claude adapter MUST map it to `ClaudeAgentOptions` fields: `thinking` (dict with `type`, optional `budget_tokens`) and/or `effort` (string: `low`/`medium`/`high`/`max`). The adapter reads these keys directly from `reasoning_config` and passes them to the SDK constructor.
 
-20. **Skills.** Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
+20. **Reasoning — Gemini.** When `reasoning_config` is present, the Gemini adapter MUST construct a `types.ThinkingConfig` from the config keys (e.g. `thinking_budget`, `thinking_level`, `include_thoughts`) and pass it via `GenerateContentConfig.thinking_config` on the Agent. Unknown keys in the config are ignored; the Gemini API validates at invocation time.
 
-21. **Default allowed tools list.** Shared default names: `Bash`, `Read`, `Glob`, `Grep`, `Skill`. The HTTP route always passes this list unless a future contract exposes overrides. [PLANNED: OLS-3033]
+21. **Reasoning — OpenAI.** When `reasoning_config` is present, the OpenAI adapter MUST construct `ModelSettings(reasoning=Reasoning(...), verbosity=...)` from the config keys (e.g. `effort`, `mode`, `context`, `verbosity`) and pass it to `SandboxAgent(model_settings=...)`. Unknown keys are ignored; the OpenAI API validates at invocation time.
 
-22. **Event logging.** A phase-tagged logger buffers `thinking_delta` events, flushes when buffer size exceeds an internal threshold or on `content_block_stop` or tool/result events, and logs truncated thinking. Tool calls and results are logged with separate input/output truncation caps. The `result` event logs cost, combined token count, and truncated final text.
+22. **Thin-adapter principle.** Providers MUST delegate tool execution, command invocation, and skill discovery to their SDKs. Adapters MUST NOT implement custom tool executors that duplicate SDK behavior except for minimal glue (e.g., auto-confirm, path layout).
 
-23. **Stringifying tool I/O.** Non-string tool arguments and results are JSON-serialized for events when the SDK exposes structured objects.
+23. **Structured output.** When `output_schema` is set: Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI's strict mode requires.
 
-24. **Gemini / Vertex.** When Vertex mode is enabled via environment, search-style tools MUST NOT be combined with non-search tools in the same agent tool list; the adapter omits those search tools in that mode.
+24. **Skills.** Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
 
-25. **Gemini / exit loop.** When no `output_schema` is set, the adapter registers an SDK exit-loop tool; when `output_schema` is set, that tool is omitted.
+25. **Default allowed tools list.** Shared default names: `Bash`, `Read`, `Glob`, `Grep`, `Skill`. The HTTP route always passes this list unless a future contract exposes overrides. [PLANNED: OLS-3033]
 
-26. **OpenAI client.** The OpenAI adapter constructs an async OpenAI client with optional base URL override from environment (see `configuration.md`).
+26. **Event logging.** A phase-tagged logger buffers `thinking_delta` events, flushes when buffer size exceeds an internal threshold or on `content_block_stop` or tool/result events, and logs truncated thinking. Tool calls and results are logged with separate input/output truncation caps. The `result` event logs cost, combined token count, and truncated final text.
 
-27. **MCP — Claude.** When `mcp_servers` is non-empty, the Claude adapter MUST pass them as `ClaudeAgentOptions(mcp_servers={...})` using `"type": "http"` (Streamable HTTP) entries with `url` and `headers` from the resolved config. The adapter MUST add `mcp__<name>__*` wildcard patterns to `allowed_tools` for each configured MCP server so the SDK can invoke discovered tools.
+27. **Stringifying tool I/O.** Non-string tool arguments and results are JSON-serialized for events when the SDK exposes structured objects.
 
-28. **MCP — Gemini.** When `mcp_servers` is non-empty, the Gemini adapter MUST create `McpToolset` instances with `StreamableHTTPConnectionParams` for each server (including resolved headers) and add them to the agent's `tools` list alongside existing tools.
+28. **Gemini / Vertex.** When Vertex mode is enabled via environment, search-style tools MUST NOT be combined with non-search tools in the same agent tool list; the adapter omits those search tools in that mode.
 
-29. **MCP — OpenAI.** When `mcp_servers` is non-empty, the OpenAI adapter MUST create `MCPServerStreamableHttp` instances for each server (with resolved headers) and pass them to the agent's `mcp_servers` parameter.
+29. **Gemini / exit loop.** When no `output_schema` is set, the adapter registers an SDK exit-loop tool; when `output_schema` is set, that tool is omitted.
+
+30. **OpenAI client.** The OpenAI adapter constructs an async OpenAI client with optional base URL override from environment (see `configuration.md`).
+
+31. **MCP — Claude.** When `mcp_servers` is non-empty, the Claude adapter MUST pass them as `ClaudeAgentOptions(mcp_servers={...})` using `"type": "http"` (Streamable HTTP) entries with `url` and `headers` from the resolved config. The adapter MUST add `mcp__<name>__*` wildcard patterns to `allowed_tools` for each configured MCP server so the SDK can invoke discovered tools.
+
+32. **MCP — Gemini.** When `mcp_servers` is non-empty, the Gemini adapter MUST create `McpToolset` instances with `StreamableHTTPConnectionParams` for each server (including resolved headers) and add them to the agent's `tools` list alongside existing tools.
+
+33. **MCP — OpenAI.** When `mcp_servers` is non-empty, the OpenAI adapter MUST create `MCPServerStreamableHttp` instances for each server (with resolved headers) and pass them to the agent's `mcp_servers` parameter.
 
 ## Configuration Surface
 
@@ -75,7 +83,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 ## Constraints
 
-- Not every adapter emits `thinking_delta`; absence does not imply failure.
+- Not every adapter emits `thinking_delta` when reasoning is unconfigured; absence does not imply failure. When `reasoning_config` is set and includes thinking output options, the adapter SHOULD emit `thinking_delta` events if the SDK provides them.
 - Cost fields on `result` may be zero where the SDK does not report usage or price.
 
 ## Planned Changes

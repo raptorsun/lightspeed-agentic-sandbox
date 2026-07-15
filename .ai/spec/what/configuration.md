@@ -17,6 +17,7 @@ Cross-references: how options are consumed in code → `how/provider-architectur
     | `LIGHTSPEED_PROVIDER_PROJECT` | When provider=`vertex` | Cloud project ID |
     | `LIGHTSPEED_PROVIDER_REGION` | When provider=`vertex` or `bedrock` | Cloud region |
     | `LIGHTSPEED_PROVIDER_API_VERSION` | When provider=`azure` | API version |
+    | `LIGHTSPEED_REASONING_CONFIG` | No | JSON-serialized reasoning config from `Agent.spec.reasoningConfig`. When absent, SDK defaults apply. |
 
     Credentials are mounted via `envFrom` (all secret keys as env vars) AND as files at `/var/run/secrets/llm-credentials/`.
 
@@ -55,6 +56,8 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 8. **Provider credentials.** API authentication uses the conventional env vars expected by each vendor SDK (Anthropic, Google/Gemini, OpenAI). These are populated from the credentials secret mounted via `envFrom` by the operator, and optionally from the file mount at `/var/run/secrets/llm-credentials/` for file-based credentials. The sandbox configuration mapping (rule 2) sets any additional credential-related env vars (e.g. `GOOGLE_APPLICATION_CREDENTIALS` path).
 
 9. **Vertex / Google GenAI.** `GOOGLE_GENAI_USE_VERTEXAI` toggles Vertex behavior for the Gemini adapter (tool composition rules per `provider-contract.md`). Set by the configuration mapping when `LIGHTSPEED_PROVIDER=vertex` and `LIGHTSPEED_MODEL_PROVIDER=Google`.
+
+9a. **Reasoning configuration.** When `LIGHTSPEED_REASONING_CONFIG` is set, the sandbox MUST parse it as a JSON object and make it available to provider adapters via `ProviderQueryOptions.reasoning_config`. When the env var is absent or empty, `reasoning_config` MUST be `None` and adapters MUST use SDK defaults. The sandbox MUST NOT validate the contents — the upstream SDK and model API validate at invocation time. This field is aligned with the classic OLS `reasoning_config` model parameter ([OLS-3452]).
 
 10. **OpenAI base URL.** `OPENAI_BASE_URL` overrides the OpenAI client base URL when set. Mapped from `LIGHTSPEED_PROVIDER_URL` by the configuration mapping for `openai` and `vertex`/`OpenAI` providers.
 
@@ -108,6 +111,7 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 | `LIGHTSPEED_AUDIT_ENABLED` | Audit event logging toggle. Set by operator from `AgenticOLSConfig`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP gRPC endpoint for span export. Set by operator from `AgenticOLSConfig`. |
 | `LIGHTSPEED_MCP_SERVERS` | JSON array of MCP server configs with URLs, timeouts, and header sources. Set by operator from `ToolsSpec.mcpServers` and auto-injected defaults. |
+| `LIGHTSPEED_REASONING_CONFIG` | JSON reasoning config from operator. Parsed at startup, passed to adapters via `ProviderQueryOptions`. |
 | `/var/run/secrets/llm-credentials/` | LLM credential files mounted by operator (unconditional). |
 | `/var/run/secrets/kubernetes.io/serviceaccount/token` | Projected SA token for MCP `ServiceAccountToken` header resolution. |
 | `/var/secrets/mcp/<secretName>/` | MCP header secret files mounted by operator for `Secret`-sourced headers. |
