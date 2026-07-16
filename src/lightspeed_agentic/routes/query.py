@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -17,6 +18,7 @@ from opentelemetry import context as otel_context
 from lightspeed_agentic.audit import AuditLogger, derive_phase
 from lightspeed_agentic.logging import EventLogger
 from lightspeed_agentic.mcp import ResolvedMCPServer
+from lightspeed_agentic.metrics import operation_duration, token_usage
 from lightspeed_agentic.routes.models import RunRequest, RunResponse
 from lightspeed_agentic.tools import DEFAULT_ALLOWED_TOOLS
 from lightspeed_agentic.tracing import get_tracer, parse_traceparent
@@ -70,6 +72,27 @@ def register_query_routes(
     audit_enabled: bool = False,
     mcp_servers: list[ResolvedMCPServer] | None = None,
 ) -> None:
+    def _record_metrics(*, in_tokens: int, out_tokens: int, elapsed: float) -> None:
+        if in_tokens:
+            token_usage.labels(
+                gen_ai_token_type="input",  # noqa: S106
+                gen_ai_request_model=model,
+                gen_ai_provider_name=provider.name,
+                gen_ai_operation_name="chat",
+            ).observe(in_tokens)
+        if out_tokens:
+            token_usage.labels(
+                gen_ai_token_type="output",  # noqa: S106
+                gen_ai_request_model=model,
+                gen_ai_provider_name=provider.name,
+                gen_ai_operation_name="chat",
+            ).observe(out_tokens)
+        operation_duration.labels(
+            gen_ai_request_model=model,
+            gen_ai_provider_name=provider.name,
+            gen_ai_operation_name="chat",
+        ).observe(elapsed)
+
     async def run_endpoint(req: RunRequest, request: Request) -> RunResponse:
         timeout = req.timeout_ms if req.timeout_ms is not None else default_timeout_ms
         system_prompt = req.systemPrompt or "You are an AI agent."
@@ -98,6 +121,8 @@ def register_query_routes(
             provider.name,
             trace_id,
         )
+
+        start_time = time.monotonic()
 
         try:
             text = ""
@@ -148,6 +173,7 @@ def register_query_routes(
                 output_tokens=0,
                 cost_usd=0,
             )
+            _record_metrics(in_tokens=0, out_tokens=0, elapsed=time.monotonic() - start_time)
             return RunResponse(success=False, summary=f"Agent timed out after {timeout}ms")
         except Exception as e:
             audit_logger.complete(
@@ -156,6 +182,7 @@ def register_query_routes(
                 output_tokens=0,
                 cost_usd=0,
             )
+            _record_metrics(in_tokens=0, out_tokens=0, elapsed=time.monotonic() - start_time)
             logger.exception("[agent] query error")
             return RunResponse(success=False, summary=f"Agent error: {e}")
 
@@ -165,6 +192,11 @@ def register_query_routes(
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 cost_usd=cost,
+            )
+            _record_metrics(
+                in_tokens=input_tokens,
+                out_tokens=output_tokens,
+                elapsed=time.monotonic() - start_time,
             )
             return RunResponse(success=False, summary="Agent returned empty response")
 
@@ -182,6 +214,11 @@ def register_query_routes(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=cost,
+        )
+        _record_metrics(
+            in_tokens=input_tokens,
+            out_tokens=output_tokens,
+            elapsed=time.monotonic() - start_time,
         )
 
         if parsed is not None:

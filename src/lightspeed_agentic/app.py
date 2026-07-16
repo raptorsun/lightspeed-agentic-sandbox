@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from lightspeed_agentic.config import resolve_sdk
 from lightspeed_agentic.factory import create_provider
 from lightspeed_agentic.health import register_health_routes, register_ready_route
+from lightspeed_agentic.metrics import register_metrics_route
 from lightspeed_agentic.routes import build_router, resolve_startup_model
 from lightspeed_agentic.tracing import init_tracer, shutdown_tracer
 
@@ -53,3 +54,4 @@ app.include_router(router, prefix="/v1/agent")
 
 register_health_routes(app)
 register_ready_route(app, sdk=sdk)
+register_metrics_route(app)

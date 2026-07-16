@@ -17,6 +17,13 @@ def get_health(bdd_context: dict[str, Any], server_url: str) -> None:
     bdd_context["response_body"] = res.body
 
 
+@when("I GET /metrics")
+def get_metrics(bdd_context: dict[str, Any], server_url: str) -> None:
+    res: RunHttpResult = get_json(server_url, "/metrics")
+    bdd_context["http_result"] = res
+    bdd_context["response_body"] = res.body
+
+
 @when("I GET /ready")
 def get_ready(bdd_context: dict[str, Any], server_url: str) -> None:
     """GET /ready and store the response on the BDD context."""
