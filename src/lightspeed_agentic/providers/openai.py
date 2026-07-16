@@ -243,15 +243,12 @@ class OpenAIProvider(AgentProvider):
                 from agents.model_settings import ModelSettings
                 from openai.types.shared import Reasoning
 
-                reasoning_kwargs: dict[str, Any] = {}
-                for key in ("effort", "mode", "context", "summary", "generate_summary"):
-                    if key in options.reasoning_config:
-                        reasoning_kwargs[key] = options.reasoning_config[key]
+                rc = dict(options.reasoning_config)
                 model_settings_kwargs: dict[str, Any] = {}
-                if reasoning_kwargs:
-                    model_settings_kwargs["reasoning"] = Reasoning(**reasoning_kwargs)
-                if "verbosity" in options.reasoning_config:
-                    model_settings_kwargs["verbosity"] = options.reasoning_config["verbosity"]
+                if "verbosity" in rc:
+                    model_settings_kwargs["verbosity"] = rc.pop("verbosity")
+                if rc:
+                    model_settings_kwargs["reasoning"] = Reasoning(**rc)
                 if model_settings_kwargs:
                     agent_kwargs["model_settings"] = ModelSettings(**model_settings_kwargs)
 

@@ -45,12 +45,12 @@ class TestClaudeReasoningConfig:
         assert sdk_options.effort == "high"
 
     @pytest.mark.asyncio
-    async def test_unrecognized_keys_ignored(self) -> None:
-        """Unrecognized keys do not appear on ClaudeAgentOptions."""
+    async def test_all_keys_passed_through(self) -> None:
+        """All reasoning_config keys are forwarded to ClaudeAgentOptions."""
         reasoning = {"unknown_key": "value", "effort": "low"}
         sdk_options = await self._run_claude(reasoning_config=reasoning)
         assert sdk_options.effort == "low"
-        assert not hasattr(sdk_options, "unknown_key")
+        assert sdk_options.unknown_key == "value"
 
     @staticmethod
     async def _run_claude(reasoning_config=None):
@@ -71,6 +71,7 @@ class TestClaudeReasoningConfig:
         mock_sdk.ClaudeAgentOptions = FakeClaudeAgentOptions
         mock_sdk.ResultMessage = type("ResultMessage", (), {})
         mock_sdk.AssistantMessage = type("AssistantMessage", (), {})
+        mock_sdk.UserMessage = type("UserMessage", (), {})
         mock_sdk.StreamEvent = type("StreamEvent", (), {})
         mock_sdk.query = fake_query
 
@@ -106,13 +107,13 @@ class TestGeminiReasoningConfig:
         assert tc.include_thoughts is True
 
     @pytest.mark.asyncio
-    async def test_unrecognized_keys_ignored(self) -> None:
-        """Unrecognized keys don't end up in ThinkingConfig."""
+    async def test_all_keys_passed_through(self) -> None:
+        """All reasoning_config keys are forwarded to ThinkingConfig."""
         reasoning = {"unknown_param": "x", "thinking_budget": 1024}
         gen_config = await self._run_gemini(reasoning_config=reasoning)
         tc = gen_config.thinking_config
         assert tc.thinking_budget == 1024
-        assert not hasattr(tc, "unknown_param")
+        assert tc.unknown_param == "x"
 
     @staticmethod
     async def _run_gemini(reasoning_config=None):
@@ -226,21 +227,21 @@ class TestOpenAIReasoningConfig:
     @pytest.mark.asyncio
     async def test_reasoning_keys(self) -> None:
         """Recognized keys build ModelSettings with Reasoning."""
-        reasoning = {"effort": "high", "mode": "chain_of_thought", "verbosity": "verbose"}
+        reasoning = {"effort": "high", "mode": "chain_of_thought", "verbosity": "high"}
         agent_kwargs = await self._run_openai(reasoning_config=reasoning)
         ms = agent_kwargs["model_settings"]
         assert ms.reasoning.effort == "high"
         assert ms.reasoning.mode == "chain_of_thought"
-        assert ms.verbosity == "verbose"
+        assert ms.verbosity == "high"
 
     @pytest.mark.asyncio
-    async def test_unrecognized_keys_ignored(self) -> None:
-        """Unrecognized keys are not passed to ModelSettings or Reasoning."""
+    async def test_all_keys_passed_through(self) -> None:
+        """All non-verbosity keys are forwarded to Reasoning."""
         reasoning = {"effort": "low", "unknown_stuff": True}
         agent_kwargs = await self._run_openai(reasoning_config=reasoning)
         ms = agent_kwargs["model_settings"]
         assert ms.reasoning.effort == "low"
-        assert not hasattr(ms, "unknown_stuff")
+        assert ms.reasoning.unknown_stuff is True
 
     @staticmethod
     async def _run_openai(reasoning_config=None):

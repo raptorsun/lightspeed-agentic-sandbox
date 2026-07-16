@@ -119,15 +119,7 @@ class GeminiProvider(AgentProvider):
         }
 
         if options.reasoning_config:
-            thinking_kwargs: dict[str, Any] = {}
-            if "thinking_budget" in options.reasoning_config:
-                thinking_kwargs["thinking_budget"] = options.reasoning_config["thinking_budget"]
-            if "thinking_level" in options.reasoning_config:
-                thinking_kwargs["thinking_level"] = options.reasoning_config["thinking_level"]
-            if "include_thoughts" in options.reasoning_config:
-                thinking_kwargs["include_thoughts"] = options.reasoning_config["include_thoughts"]
-            if thinking_kwargs:
-                gen_content_kwargs["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+            gen_content_kwargs["thinking_config"] = types.ThinkingConfig(**options.reasoning_config)
 
         agent_kwargs: dict[str, Any] = {
             "name": "lightspeed",

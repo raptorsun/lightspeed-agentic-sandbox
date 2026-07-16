@@ -40,7 +40,8 @@ reasoning_config = parse_reasoning_config()
 provider = create_provider(sdk.name)
 startup_model = resolve_startup_model(sdk.name)
 logger.info(
-    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s, audit=%s, capture_content=%s, reasoning=%s)",
+    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s,"
+    " audit=%s, capture_content=%s, reasoning=%s)",
     sdk.name,
     startup_model,
     os.environ.get("LIGHTSPEED_MODEL", ""),

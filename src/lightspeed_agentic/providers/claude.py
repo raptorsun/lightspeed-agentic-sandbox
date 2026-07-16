@@ -98,9 +98,7 @@ class ClaudeProvider(AgentProvider):
 
         reasoning_kwargs: dict[str, Any] = {}
         if options.reasoning_config:
-            for key in ("thinking", "effort", "max_thinking_tokens"):
-                if key in options.reasoning_config:
-                    reasoning_kwargs[key] = options.reasoning_config[key]
+            reasoning_kwargs = dict(options.reasoning_config)
 
         sdk_options = ClaudeAgentOptions(
             model=options.model,
