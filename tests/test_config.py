@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from lightspeed_agentic.config import resolve_sdk
+from lightspeed_agentic.config import parse_reasoning_config, resolve_sdk
 
 
 @pytest.fixture(autouse=True)
@@ -227,3 +227,54 @@ def test_unknown_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ValueError, match="Unknown provider"):
         resolve_sdk()
+
+
+# --- parse_reasoning_config tests ---
+
+
+def test_reasoning_config_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("LIGHTSPEED_REASONING_CONFIG", raising=False)
+    assert parse_reasoning_config() is None
+
+
+def test_reasoning_config_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", "")
+    assert parse_reasoning_config() is None
+
+
+def test_reasoning_config_whitespace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", "   ")
+    assert parse_reasoning_config() is None
+
+
+def test_reasoning_config_valid_object(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "LIGHTSPEED_REASONING_CONFIG",
+        '{"effort": "high", "thinking": {"type": "enabled"}}',
+    )
+    result = parse_reasoning_config()
+    assert result == {"effort": "high", "thinking": {"type": "enabled"}}
+
+
+def test_reasoning_config_malformed_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", "{not valid json")
+    with pytest.raises(ValueError, match="invalid JSON"):
+        parse_reasoning_config()
+
+
+def test_reasoning_config_array_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", '["not", "an", "object"]')
+    with pytest.raises(ValueError, match="must be a JSON object, got list"):
+        parse_reasoning_config()
+
+
+def test_reasoning_config_string_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", '"just a string"')
+    with pytest.raises(ValueError, match="must be a JSON object, got str"):
+        parse_reasoning_config()
+
+
+def test_reasoning_config_number_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIGHTSPEED_REASONING_CONFIG", "42")
+    with pytest.raises(ValueError, match="must be a JSON object, got int"):
+        parse_reasoning_config()

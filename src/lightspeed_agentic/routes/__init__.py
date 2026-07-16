@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import os
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -56,6 +57,7 @@ def build_router(
     audit_enabled: bool = False,
     capture_content: bool = False,
     mcp_servers: list[ResolvedMCPServer] | None = None,
+    reasoning_config: dict[str, Any] | None = None,
 ) -> APIRouter:
     resolved_model = _resolve_router_model(provider.name, model)
     resolved_mcp = mcp_servers if mcp_servers is not None else parse_mcp_servers()
@@ -71,5 +73,6 @@ def build_router(
         audit_enabled=audit_enabled,
         capture_content=capture_content,
         mcp_servers=resolved_mcp,
+        reasoning_config=reasoning_config,
     )
     return router

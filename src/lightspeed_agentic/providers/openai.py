@@ -39,6 +39,7 @@ from lightspeed_agentic.types import (
     ProviderQueryOptions,
     ResultEvent,
     TextDeltaEvent,
+    ThinkingDeltaEvent,
     ToolCallEvent,
     ToolResultEvent,
     stringify,
@@ -188,7 +189,11 @@ class OpenAIProvider(AgentProvider):
         from agents.sandbox.sandboxes.unix_local import (
             UnixLocalSandboxClient,
         )
-        from openai.types.responses import ResponseTextDeltaEvent
+        from openai.types.responses import (
+            ResponseReasoningSummaryTextDeltaEvent,
+            ResponseReasoningTextDeltaEvent,
+            ResponseTextDeltaEvent,
+        )
 
         _ensure_openai_init()
 
@@ -234,6 +239,22 @@ class OpenAIProvider(AgentProvider):
                 "mcp_servers": mcp_servers_list,
             }
 
+            if options.reasoning_config:
+                from agents.model_settings import ModelSettings
+                from openai.types.shared import Reasoning
+
+                reasoning_kwargs: dict[str, Any] = {}
+                for key in ("effort", "mode", "context", "summary", "generate_summary"):
+                    if key in options.reasoning_config:
+                        reasoning_kwargs[key] = options.reasoning_config[key]
+                model_settings_kwargs: dict[str, Any] = {}
+                if reasoning_kwargs:
+                    model_settings_kwargs["reasoning"] = Reasoning(**reasoning_kwargs)
+                if "verbosity" in options.reasoning_config:
+                    model_settings_kwargs["verbosity"] = options.reasoning_config["verbosity"]
+                if model_settings_kwargs:
+                    agent_kwargs["model_settings"] = ModelSettings(**model_settings_kwargs)
+
             if options.output_schema:
                 agent_kwargs["output_type"] = _RawJsonSchema(options.output_schema)
 
@@ -256,6 +277,17 @@ class OpenAIProvider(AgentProvider):
                 if isinstance(event, RawResponsesStreamEvent):
                     if isinstance(event.data, ResponseTextDeltaEvent) and event.data.delta:
                         yield TextDeltaEvent(text=event.data.delta)
+                    elif (
+                        isinstance(
+                            event.data,
+                            (
+                                ResponseReasoningTextDeltaEvent,
+                                ResponseReasoningSummaryTextDeltaEvent,
+                            ),
+                        )
+                        and event.data.delta
+                    ):
+                        yield ThinkingDeltaEvent(thinking=event.data.delta)
                 elif isinstance(event, RunItemStreamEvent):
                     if isinstance(event.item, ToolCallItem):
                         raw = event.item.raw_item

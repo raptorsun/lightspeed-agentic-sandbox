@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from lightspeed_agentic.config import resolve_sdk
+from lightspeed_agentic.config import parse_reasoning_config, resolve_sdk
 from lightspeed_agentic.factory import create_provider
 from lightspeed_agentic.health import register_health_routes, register_ready_route
 from lightspeed_agentic.metrics import register_metrics_route
@@ -36,15 +36,17 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="lightspeed-agentic-sandbox", lifespan=lifespan)
 
 sdk = resolve_sdk()
+reasoning_config = parse_reasoning_config()
 provider = create_provider(sdk.name)
 startup_model = resolve_startup_model(sdk.name)
 logger.info(
-    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s, audit=%s, capture_content=%s)",
+    "Starting app (sdk=%s, model=%s, LIGHTSPEED_MODEL=%s, audit=%s, capture_content=%s, reasoning=%s)",
     sdk.name,
     startup_model,
     os.environ.get("LIGHTSPEED_MODEL", ""),
     audit_enabled,
     capture_content,
+    "configured" if reasoning_config else "default",
 )
 router = build_router(
     provider,
@@ -52,6 +54,7 @@ router = build_router(
     model=startup_model,
     audit_enabled=audit_enabled,
     capture_content=capture_content,
+    reasoning_config=reasoning_config,
 )
 app.include_router(router, prefix="/v1/agent")
 

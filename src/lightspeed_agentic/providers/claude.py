@@ -96,6 +96,12 @@ class ClaudeProvider(AgentProvider):
             for server_name in mcp_servers:
                 allowed_tools.append(f"mcp__{server_name}__*")
 
+        reasoning_kwargs: dict[str, Any] = {}
+        if options.reasoning_config:
+            for key in ("thinking", "effort", "max_thinking_tokens"):
+                if key in options.reasoning_config:
+                    reasoning_kwargs[key] = options.reasoning_config[key]
+
         sdk_options = ClaudeAgentOptions(
             model=options.model,
             max_turns=options.max_turns,
@@ -108,6 +114,7 @@ class ClaudeProvider(AgentProvider):
             include_partial_messages=True,
             output_format=output_format,
             mcp_servers=mcp_servers,
+            **reasoning_kwargs,
         )
 
         _tool_name = ""

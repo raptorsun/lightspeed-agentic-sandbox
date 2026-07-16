@@ -22,6 +22,7 @@ from lightspeed_agentic.types import (
     ProviderQueryOptions,
     ResultEvent,
     TextDeltaEvent,
+    ThinkingDeltaEvent,
     ToolCallEvent,
     ToolResultEvent,
     stringify,
@@ -113,14 +114,27 @@ class GeminiProvider(AgentProvider):
         if not is_vertex:
             tool_config_kwargs["include_server_side_tool_invocations"] = True
 
+        gen_content_kwargs: dict[str, Any] = {
+            "tool_config": types.ToolConfig(**tool_config_kwargs),
+        }
+
+        if options.reasoning_config:
+            thinking_kwargs: dict[str, Any] = {}
+            if "thinking_budget" in options.reasoning_config:
+                thinking_kwargs["thinking_budget"] = options.reasoning_config["thinking_budget"]
+            if "thinking_level" in options.reasoning_config:
+                thinking_kwargs["thinking_level"] = options.reasoning_config["thinking_level"]
+            if "include_thoughts" in options.reasoning_config:
+                thinking_kwargs["include_thoughts"] = options.reasoning_config["include_thoughts"]
+            if thinking_kwargs:
+                gen_content_kwargs["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+
         agent_kwargs: dict[str, Any] = {
             "name": "lightspeed",
             "model": options.model,
             "instruction": options.system_prompt,
             "tools": tools,
-            "generate_content_config": types.GenerateContentConfig(
-                tool_config=types.ToolConfig(**tool_config_kwargs),
-            ),
+            "generate_content_config": types.GenerateContentConfig(**gen_content_kwargs),
         }
 
         agent = Agent(**agent_kwargs)
@@ -168,6 +182,15 @@ class GeminiProvider(AgentProvider):
             is_partial = getattr(event, "partial", False)
 
             for part in event.content.parts:
+                if (
+                    hasattr(part, "thought")
+                    and part.thought
+                    and hasattr(part, "text")
+                    and part.text
+                ):
+                    yield ThinkingDeltaEvent(thinking=part.text)
+                    continue
+
                 if hasattr(part, "text") and part.text:
                     if options.stream and is_partial:
                         yield TextDeltaEvent(text=part.text)
