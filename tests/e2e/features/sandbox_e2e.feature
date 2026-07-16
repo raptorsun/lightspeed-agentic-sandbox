@@ -41,6 +41,12 @@ Feature: Sandbox E2E contract
     And success is true
     And the response first failure reason matches the prepared context
 
+  Scenario: Metrics endpoint exposes gen_ai histograms
+    Given the sandbox service is running
+    When I GET /metrics
+    Then the HTTP response status code is 200
+    And the response body contains gen_ai histogram metrics
+
   Scenario: Approved option from context reaches the model
     Given the sandbox service is running
     And a context with approved option and an echo output schema have been prepared

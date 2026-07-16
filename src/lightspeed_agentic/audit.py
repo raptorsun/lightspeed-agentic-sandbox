@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from datetime import UTC, datetime
 from typing import Any
 
 from opentelemetry.context import Context
 from opentelemetry.trace import StatusCode
 
+from lightspeed_agentic.metrics import tool_duration
 from lightspeed_agentic.tracing import get_tracer
 from lightspeed_agentic.types import TOOL_INPUT_MAX_CHARS, TOOL_OUTPUT_MAX_CHARS, ProviderEvent
 
@@ -39,6 +41,7 @@ class AuditLogger:
         self._thinking_buffer: list[str] = []
         self._last_tool_name = "unknown"
         self._tool_span: Any = None
+        self._tool_start: float = 0.0
         self._tracer = get_tracer()
         self._parent_context: Context | None = None
         self._emit("audit.agent.started", model=model, provider=provider)
@@ -62,8 +65,12 @@ class AuditLogger:
             case "tool_call":
                 self._flush_buffers()
                 if self._tool_span is not None:
+                    tool_duration.labels(gen_ai_tool_name=self._last_tool_name).observe(
+                        time.monotonic() - self._tool_start
+                    )
                     self._tool_span.end()
                 self._last_tool_name = event.name or "unknown"
+                self._tool_start = time.monotonic()
                 self._tool_span = self._tracer.start_span(
                     f"tool.{self._last_tool_name}",
                     context=self._parent_context,
@@ -83,6 +90,9 @@ class AuditLogger:
                     success=True,
                 )
                 if self._tool_span is not None:
+                    tool_duration.labels(gen_ai_tool_name=self._last_tool_name).observe(
+                        time.monotonic() - self._tool_start
+                    )
                     self._tool_span.set_attribute(
                         "tool.output", event.output[:TOOL_OUTPUT_MAX_CHARS]
                     )
@@ -97,6 +107,9 @@ class AuditLogger:
     ) -> None:
         self._flush_buffers()
         if self._tool_span is not None:
+            tool_duration.labels(gen_ai_tool_name=self._last_tool_name).observe(
+                time.monotonic() - self._tool_start
+            )
             self._tool_span.set_status(StatusCode.ERROR)
             self._tool_span.end()
             self._tool_span = None

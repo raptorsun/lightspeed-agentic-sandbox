@@ -29,6 +29,17 @@ def assert_status_200(bdd_context: dict[str, Any]) -> None:
     assert res.status_code == 200, f"expected 200, got {res.status_code}: {res.raw_text[:500]}"
 
 
+@then("the response body contains gen_ai histogram metrics")
+def assert_gen_ai_histograms(bdd_context: dict[str, Any]) -> None:
+    raw = bdd_context["http_result"].raw_text
+    for name in (
+        "gen_ai_client_token_usage",
+        "gen_ai_client_operation_duration_seconds",
+        "gen_ai_execute_tool_duration_seconds",
+    ):
+        assert name in raw, f"metric {name!r} not found in /metrics output"
+
+
 @then("the response includes success summary and ticketId fields")
 def assert_flat_fields(bdd_context: dict[str, Any]) -> None:
     """Assert structured output includes success, summary, and ticketId."""
