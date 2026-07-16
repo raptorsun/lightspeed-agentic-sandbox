@@ -620,13 +620,13 @@ arches:
     name: python3.12-setuptools
     evr: 68.2.2-5.el9_6
     sourcerpm: python3.12-setuptools-68.2.2-5.el9_6.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/appstream/os/Packages/s/skopeo-1.22.2-6.el9_8.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/appstream/os/Packages/s/skopeo-1.22.2-7.el9_8.aarch64.rpm
     repoid: ubi-9-for-aarch64-appstream-rpms
-    size: 7714893
-    checksum: sha256:df9ea6b7c57fbcc9eae8fd7279b9d009be2c56a7dd479d7497655bf387b19c38
+    size: 7730213
+    checksum: sha256:074a883d072a5cbf34005d8d5b4a001358d346636ea9215cf45962081133d93e
     name: skopeo
-    evr: 2:1.22.2-6.el9_8
-    sourcerpm: skopeo-1.22.2-6.el9_8.src.rpm
+    evr: 2:1.22.2-7.el9_8
+    sourcerpm: skopeo-1.22.2-7.el9_8.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/appstream/os/Packages/s/slirp4netns-1.3.3-1.el9.aarch64.rpm
     repoid: ubi-9-for-aarch64-appstream-rpms
     size: 48428
@@ -942,13 +942,13 @@ arches:
     name: openssh-clients
     evr: 9.9p1-7.el9_8
     sourcerpm: openssh-9.9p1-7.el9_8.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/o/openssl-3.5.5-4.el9_8.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/o/openssl-3.5.5-5.el9_8.aarch64.rpm
     repoid: ubi-9-for-aarch64-baseos-rpms
-    size: 1540982
-    checksum: sha256:b0d7b7d68bdb9ab710ecd3ccd83119173f4d6a7a36c5d475a768bf07d7c69907
+    size: 1540546
+    checksum: sha256:816a01d9e4436ba5ba62c6a391156b8fc02dd78b15587425eb2798d488989dce
     name: openssl
-    evr: 1:3.5.5-4.el9_8
-    sourcerpm: openssl-3.5.5-4.el9_8.src.rpm
+    evr: 1:3.5.5-5.el9_8
+    sourcerpm: openssl-3.5.5-5.el9_8.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/p/pam-1.5.1-28.el9.aarch64.rpm
     repoid: ubi-9-for-aarch64-baseos-rpms
     size: 635826
@@ -1047,13 +1047,13 @@ arches:
     name: util-linux-core
     evr: 2.37.4-25.el9
     sourcerpm: util-linux-2.37.4-25.el9.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/v/vim-minimal-8.2.2637-26.el9_8.6.aarch64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/aarch64/baseos/os/Packages/v/vim-minimal-8.2.2637-26.el9_8.10.aarch64.rpm
     repoid: ubi-9-for-aarch64-baseos-rpms
-    size: 667875
-    checksum: sha256:bad51a9346b2188cab5f321bbf3639c2e917a3a1dea932160bfc86c2324866aa
+    size: 668730
+    checksum: sha256:c09b7568135282afe373535a8505437ede3cfe93dbad01b8ffa3c2ebd2642cd8
     name: vim-minimal
-    evr: 2:8.2.2637-26.el9_8.6
-    sourcerpm: vim-8.2.2637-26.el9_8.6.src.rpm
+    evr: 2:8.2.2637-26.el9_8.10
+    sourcerpm: vim-8.2.2637-26.el9_8.10.src.rpm
   source: []
   module_metadata: []
 - arch: x86_64
@@ -1674,13 +1674,13 @@ arches:
     name: python3.12-setuptools
     evr: 68.2.2-5.el9_6
     sourcerpm: python3.12-setuptools-68.2.2-5.el9_6.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/s/skopeo-1.22.2-6.el9_8.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/s/skopeo-1.22.2-7.el9_8.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
-    size: 8615114
-    checksum: sha256:954c605d231d1ba23425745b6533f7558fe5b737a50bce95a162eddf5da34008
+    size: 8623168
+    checksum: sha256:ec499a7f895bc70eae5e50527dbbe6b1ff621ba0599bc8bbf0a55a4661924bbc
     name: skopeo
-    evr: 2:1.22.2-6.el9_8
-    sourcerpm: skopeo-1.22.2-6.el9_8.src.rpm
+    evr: 2:1.22.2-7.el9_8
+    sourcerpm: skopeo-1.22.2-7.el9_8.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/appstream/os/Packages/s/slirp4netns-1.3.3-1.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-appstream-rpms
     size: 48562
@@ -1996,13 +1996,13 @@ arches:
     name: openssh-clients
     evr: 9.9p1-7.el9_8
     sourcerpm: openssh-9.9p1-7.el9_8.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/o/openssl-3.5.5-4.el9_8.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/o/openssl-3.5.5-5.el9_8.x86_64.rpm
     repoid: ubi-9-for-x86_64-baseos-rpms
-    size: 1564134
-    checksum: sha256:e0e2c1f901d3f6245ff43f194ac11ba133cf99c630307239722c07a2282a1356
+    size: 1563716
+    checksum: sha256:7d6537b3a4e4e5a1fe0dc17b0d7794e466b3dd20f9dc34356dbbfe12b4ac2d44
     name: openssl
-    evr: 1:3.5.5-4.el9_8
-    sourcerpm: openssl-3.5.5-4.el9_8.src.rpm
+    evr: 1:3.5.5-5.el9_8
+    sourcerpm: openssl-3.5.5-5.el9_8.src.rpm
   - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/p/pam-1.5.1-28.el9.x86_64.rpm
     repoid: ubi-9-for-x86_64-baseos-rpms
     size: 637912
@@ -2101,12 +2101,12 @@ arches:
     name: util-linux-core
     evr: 2.37.4-25.el9
     sourcerpm: util-linux-2.37.4-25.el9.src.rpm
-  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/v/vim-minimal-8.2.2637-26.el9_8.6.x86_64.rpm
+  - url: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/x86_64/baseos/os/Packages/v/vim-minimal-8.2.2637-26.el9_8.10.x86_64.rpm
     repoid: ubi-9-for-x86_64-baseos-rpms
-    size: 695231
-    checksum: sha256:4d6e92aa7dc808fb646848b02488ab48d91ec05d98ac476fb33adcd4a655215b
+    size: 695776
+    checksum: sha256:b87c0dd1ad29ac5552db5b7a25f95b22f90dc438b13cd1027903d3307c6f3014
     name: vim-minimal
-    evr: 2:8.2.2637-26.el9_8.6
-    sourcerpm: vim-8.2.2637-26.el9_8.6.src.rpm
+    evr: 2:8.2.2637-26.el9_8.10
+    sourcerpm: vim-8.2.2637-26.el9_8.10.src.rpm
   source: []
   module_metadata: []
