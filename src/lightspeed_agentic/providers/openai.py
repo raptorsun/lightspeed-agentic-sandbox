@@ -33,8 +33,6 @@ else:
 
 
 from lightspeed_agentic.types import (
-    TOOL_INPUT_MAX_CHARS,
-    TOOL_OUTPUT_MAX_CHARS,
     AgentProvider,
     ContentBlockStopEvent,
     ProviderEvent,
@@ -267,21 +265,31 @@ class OpenAIProvider(AgentProvider):
                             or ""
                         )
                         args = getattr(raw, "arguments", None) or ""
-                        yield ToolCallEvent(name=name, input=args[:TOOL_INPUT_MAX_CHARS])
+                        yield ToolCallEvent(
+                            name=name,
+                            input=args,
+                            call_id=getattr(event.item, "call_id", "") or "",
+                        )
                     elif isinstance(event.item, ToolCallOutputItem):
                         yield ToolResultEvent(
-                            output=stringify(event.item.output)[:TOOL_OUTPUT_MAX_CHARS]
+                            output=stringify(event.item.output),
+                            call_id=getattr(event.item, "call_id", "") or "",
                         )
 
             yield ContentBlockStopEvent()
 
             usage = result.context_wrapper.usage
+            resp_model = getattr(result.context_wrapper, "model", "") or options.model
+            details = getattr(usage, "output_tokens_details", None)
+            reasoning = getattr(details, "reasoning_tokens", 0) if details else 0
 
             yield ResultEvent(
                 text=stringify(result.final_output),
                 cost_usd=0,
                 input_tokens=usage.input_tokens,
                 output_tokens=usage.output_tokens,
+                reasoning_tokens=reasoning,
+                response_model=resp_model,
             )
         finally:
             if mcp_manager:

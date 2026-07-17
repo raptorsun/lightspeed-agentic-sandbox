@@ -16,8 +16,6 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from lightspeed_agentic.types import (
-    TOOL_INPUT_MAX_CHARS,
-    TOOL_OUTPUT_MAX_CHARS,
     AgentProvider,
     ContentBlockStopEvent,
     ProviderEvent,
@@ -180,12 +178,16 @@ class GeminiProvider(AgentProvider):
                     fc = part.function_call
                     yield ToolCallEvent(
                         name=fc.name or "",
-                        input=json.dumps(dict(fc.args) if fc.args else {})[:TOOL_INPUT_MAX_CHARS],
+                        input=json.dumps(dict(fc.args) if fc.args else {}),
+                        call_id=getattr(fc, "id", "") or "",
                     )
 
                 if hasattr(part, "function_response") and part.function_response:
                     fr = part.function_response
-                    yield ToolResultEvent(output=stringify(fr.response)[:TOOL_OUTPUT_MAX_CHARS])
+                    yield ToolResultEvent(
+                        output=stringify(fr.response),
+                        call_id=getattr(fr, "id", "") or "",
+                    )
 
             usage = getattr(event, "usage_metadata", None)
             if usage:
@@ -199,4 +201,5 @@ class GeminiProvider(AgentProvider):
             cost_usd=0,
             input_tokens=total_input_tokens,
             output_tokens=total_output_tokens,
+            response_model="",
         )

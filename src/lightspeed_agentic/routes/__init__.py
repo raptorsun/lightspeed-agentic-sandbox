@@ -54,6 +54,7 @@ def build_router(
     max_turns: int = 200,
     default_timeout_ms: int = 300_000,
     audit_enabled: bool = False,
+    capture_content: bool = False,
     mcp_servers: list[ResolvedMCPServer] | None = None,
 ) -> APIRouter:
     resolved_model = _resolve_router_model(provider.name, model)
@@ -68,6 +69,7 @@ def build_router(
         max_turns=max_turns,
         default_timeout_ms=default_timeout_ms,
         audit_enabled=audit_enabled,
+        capture_content=capture_content,
         mcp_servers=resolved_mcp,
     )
     return router

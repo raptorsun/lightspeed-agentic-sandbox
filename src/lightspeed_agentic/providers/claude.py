@@ -13,8 +13,6 @@ from pathlib import Path
 from typing import Any
 
 from lightspeed_agentic.types import (
-    TOOL_INPUT_MAX_CHARS,
-    TOOL_OUTPUT_MAX_CHARS,
     AgentProvider,
     ContentBlockStopEvent,
     ProviderEvent,
@@ -76,6 +74,7 @@ class ClaudeProvider(AgentProvider):
             ClaudeAgentOptions,
             ResultMessage,
             StreamEvent,
+            UserMessage,
             query,
         )
 
@@ -112,8 +111,11 @@ class ClaudeProvider(AgentProvider):
         )
 
         _tool_name = ""
+        _tool_call_id = ""
         _tool_input_parts: list[str] = []
         _tool_input_len = 0
+        _response_model = ""
+        _emitted_tool_ids: set[str] = set()
 
         async for msg in query(prompt=options.prompt, options=sdk_options):
             if isinstance(msg, StreamEvent):
@@ -123,6 +125,7 @@ class ClaudeProvider(AgentProvider):
                     block = event.get("content_block", {})
                     if block.get("type") == "tool_use":
                         _tool_name = block.get("name", "")
+                        _tool_call_id = block.get("id", "")
                         _tool_input_parts.clear()
                         _tool_input_len = 0
                 elif etype == "content_block_delta":
@@ -135,7 +138,7 @@ class ClaudeProvider(AgentProvider):
                     elif (
                         dtype == "input_json_delta"
                         and delta.get("partial_json")
-                        and _tool_input_len < TOOL_INPUT_MAX_CHARS
+                        and _tool_input_len < 100_000
                     ):
                         _tool_input_parts.append(delta["partial_json"])
                         _tool_input_len += len(delta["partial_json"])
@@ -143,27 +146,37 @@ class ClaudeProvider(AgentProvider):
                     if _tool_name:
                         yield ToolCallEvent(
                             name=_tool_name,
-                            input="".join(_tool_input_parts)[:TOOL_INPUT_MAX_CHARS],
+                            input="".join(_tool_input_parts),
+                            call_id=_tool_call_id,
                         )
+                        if _tool_call_id:
+                            _emitted_tool_ids.add(_tool_call_id)
                         _tool_name = ""
+                        _tool_call_id = ""
                         _tool_input_parts.clear()
                         _tool_input_len = 0
                     yield ContentBlockStopEvent()
                 continue
 
             if isinstance(msg, AssistantMessage):
+                _response_model = getattr(msg, "model", "") or _response_model
                 for block in msg.content:
                     if getattr(block, "type", None) == "tool_use":
+                        bid = getattr(block, "id", "")
+                        if bid and bid in _emitted_tool_ids:
+                            continue
                         yield ToolCallEvent(
                             name=getattr(block, "name", ""),
-                            input=json.dumps(getattr(block, "input", {}))[:TOOL_INPUT_MAX_CHARS],
+                            input=json.dumps(getattr(block, "input", {})),
+                            call_id=bid,
                         )
 
-            if getattr(msg, "type", None) == "tool":
+            if isinstance(msg, UserMessage):
                 for block in getattr(msg, "content", []):
                     if getattr(block, "type", None) == "tool_result":
                         yield ToolResultEvent(
-                            output=stringify(getattr(block, "content", ""))[:TOOL_OUTPUT_MAX_CHARS],
+                            output=stringify(getattr(block, "content", "")),
+                            call_id=getattr(block, "tool_use_id", ""),
                         )
 
             if isinstance(msg, ResultMessage):
@@ -175,13 +188,25 @@ class ClaudeProvider(AgentProvider):
                 )
 
                 usage = getattr(msg, "usage", None) or {}
+                if isinstance(usage, dict):
+                    in_tok = usage.get("input_tokens", 0)
+                    out_tok = usage.get("output_tokens", 0)
+                    details = usage.get("output_tokens_details", {}) or {}
+                    reason_tok = (
+                        details.get("thinking_tokens", 0)
+                        if isinstance(details, dict)
+                        else getattr(details, "thinking_tokens", 0)
+                    )
+                else:
+                    in_tok = getattr(usage, "input_tokens", 0)
+                    out_tok = getattr(usage, "output_tokens", 0)
+                    details = getattr(usage, "output_tokens_details", None)
+                    reason_tok = getattr(details, "thinking_tokens", 0) if details else 0
                 yield ResultEvent(
                     text=text,
                     cost_usd=getattr(msg, "total_cost_usd", 0) or 0,
-                    input_tokens=usage.get("input_tokens", 0)
-                    if isinstance(usage, dict)
-                    else getattr(usage, "input_tokens", 0),
-                    output_tokens=usage.get("output_tokens", 0)
-                    if isinstance(usage, dict)
-                    else getattr(usage, "output_tokens", 0),
+                    input_tokens=in_tok,
+                    output_tokens=out_tok,
+                    reasoning_tokens=reason_tok,
+                    response_model=_response_model,
                 )
