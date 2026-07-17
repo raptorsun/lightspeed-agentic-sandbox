@@ -1,0 +1,12 @@
+--index-url https://packages.redhat.com/api/pypi/public-rhai/rhoai/3.4/cpu-ubi9/simple/
+griffelib==2.0.2 \
+    --hash=sha256:79d665b5da3d3654504f1768491dc189a603dd5791c52fd8f0d655d1422c8205
+maturin==1.13.1 \
+    --hash=sha256:058074849027fbeff8ed8e61658b0ec8f31357b8a8a05b7705a1ea03622ba0b9 \
+    --hash=sha256:c70ec3c3c8e2c8bb95e8ebe676d8d04e623ec842fc39e3547a582dc95051c685
+uv==0.11.6 \
+    --hash=sha256:2c56180b8ba73865f1c578b62f8d8cca387709fbc17042eb4711edb33d2ef3da \
+    --hash=sha256:5a4d77bdf7f4421327179bf04f4faac5a5da4fafd971c3db28cd1ccfc13a970d
+uv-build==0.11.8 \
+    --hash=sha256:2e8ee36180bbe326144a9ddcd3dc8d68a0a4021e1bd76536552e59d34abcd669 \
+    --hash=sha256:ca1f98469bebe5726c3b520709027512fa823afd04d1b09b93f905042b495c0e

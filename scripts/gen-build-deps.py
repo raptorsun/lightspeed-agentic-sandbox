@@ -8,8 +8,10 @@ such package, downloads the sdist from PyPI, reads build-system.requires
 from pyproject.toml, and resolves the full build-dependency tree via
 ``uv pip compile`` to pinned ``name==version`` lines.
 
-Wheel prefetching is controlled by the ``binary`` filter in the Tekton
-pipeline config, not by hashes in this file.
+When all dependencies are fetched as source distributions (no binary
+wheels), the build tools themselves must also be built from source.
+This script recursively resolves build-system.requires of the build
+dependencies until no new packages appear (fixed-point).
 
 Usage:
     python scripts/gen-build-deps.py requirements-build.txt \\
@@ -26,6 +28,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 try:
@@ -34,6 +37,7 @@ except ImportError:
     import tomli as tomllib  # type: ignore[no-redef]
 
 PYPI_JSON = "https://pypi.org/pypi/{}/{}/json"
+MAX_ROUNDS = 10
 
 HEADER = (
     "#\n"
@@ -98,27 +102,75 @@ def _has_sdist_hash(urls: list[dict], our_hashes: set[str]) -> bool:
     return False
 
 
-def _sdist_build_requires(urls: list[dict]) -> list[str]:
+def _read_build_requires_from_archive(urls: list[dict]) -> list[str]:
     """Download the first sdist and return its build-system.requires."""
     for u in urls:
-        if not u["filename"].endswith(".tar.gz"):
-            continue
-        if not u["url"].startswith("https://"):
+        fn = u["filename"]
+        dl_url = u["url"]
+        if not dl_url.startswith("https://"):
             continue
         try:
-            with urllib.request.urlopen(u["url"], timeout=60) as r:  # noqa: S310
+            with urllib.request.urlopen(dl_url, timeout=60) as r:  # noqa: S310
                 raw = r.read()
-            with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
-                for m in tf.getmembers():
-                    if re.match(r"^[^/]+/pyproject\.toml$", m.name):
-                        fobj = tf.extractfile(m)
-                        if fobj:
-                            data = tomllib.loads(fobj.read().decode())
+            if fn.endswith(".tar.gz"):
+                with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
+                    for m in tf.getmembers():
+                        if re.match(r"^[^/]+/pyproject\.toml$", m.name):
+                            fobj = tf.extractfile(m)
+                            if fobj:
+                                data = tomllib.loads(fobj.read().decode())
+                                return data.get("build-system", {}).get("requires", ["setuptools"])
+                    return ["setuptools"]
+            elif fn.endswith(".zip"):
+                with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                    for n in zf.namelist():
+                        if re.match(r"^[^/]+/pyproject\.toml$", n):
+                            data = tomllib.loads(zf.read(n).decode())
                             return data.get("build-system", {}).get("requires", ["setuptools"])
-                return ["setuptools"]
+                    return ["setuptools"]
         except Exception as exc:
-            print(f"  warn: {u['filename']}: {exc}", file=sys.stderr)
+            print(f"  warn: {fn}: {exc}", file=sys.stderr)
     return []
+
+
+def sdist_build_requires(name: str, version: str) -> list[str]:
+    """Fetch build-system.requires for a package version from PyPI."""
+    urls = _pypi_urls(name, version)
+    sdist_urls = [u for u in urls if u["filename"].endswith((".tar.gz", ".zip"))]
+    if not sdist_urls:
+        return []
+    return _read_build_requires_from_archive(sdist_urls)
+
+
+def _compile(specs: list[str]) -> str:
+    """Run uv pip compile on the given specs and return the output."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".in", delete=False) as tmp:
+        for spec in sorted(specs):
+            tmp.write(spec + "\n")
+        tmp_path = tmp.name
+
+    result = subprocess.run(
+        ["uv", "pip", "compile", tmp_path, "--no-header", "--no-annotate"],
+        capture_output=True,
+        text=True,
+    )
+    Path(tmp_path).unlink(missing_ok=True)
+
+    if result.returncode != 0:
+        print(result.stderr, file=sys.stderr)
+        sys.exit(1)
+
+    return result.stdout
+
+
+def _parse_compiled(output: str) -> dict[str, str]:
+    """Parse uv pip compile output into {normalized_name: version}."""
+    pkgs: dict[str, str] = {}
+    for line in output.splitlines():
+        m = re.match(r"^([A-Za-z0-9][\w.-]*)==([^\s]+)", line.strip())
+        if m:
+            pkgs[_norm(m.group(1))] = m.group(2)
+    return pkgs
 
 
 def main() -> None:
@@ -138,7 +190,11 @@ def main() -> None:
         file=sys.stderr,
     )
 
+    # -- Phase 1: collect build-system.requires from runtime packages ----------
     build_specs: list[str] = []
+    # Track exact pins (e.g. hatchling==1.26.3) that must be prefetched even if
+    # uv resolves the package to a different version.
+    exact_pins: dict[str, set[str]] = {}  # {normalized_name: {version, …}}
     for norm_name, (name, ver) in sorted(runtime_pkgs.items()):
         our_hashes = all_hashes.get(norm_name, set())
         if not our_hashes:
@@ -150,21 +206,27 @@ def main() -> None:
             continue
         if not _has_sdist_hash(urls, our_hashes):
             continue
-        reqs = _sdist_build_requires(urls)
+        reqs = _read_build_requires_from_archive(
+            [u for u in urls if u["filename"].endswith((".tar.gz", ".zip"))]
+        )
         if reqs:
             print(f"  {name}=={ver} → {reqs}", file=sys.stderr)
             build_specs.extend(reqs)
+            for req in reqs:
+                pin = re.match(r"^([A-Za-z0-9][\w.-]*)==([^\s,;]+)$", req.strip())
+                if pin:
+                    exact_pins.setdefault(_norm(pin.group(1)), set()).add(pin.group(2))
 
     # Deduplicate by normalized name, keeping the first spec seen
-    seen: set[str] = set()
+    seen_specs: set[str] = set()
     unique: list[str] = []
     for spec in build_specs:
         m = re.match(r"([A-Za-z0-9][\w.-]*)", spec)
         if not m:
             continue
         n = _norm(m.group(1))
-        if n not in seen:
-            seen.add(n)
+        if n not in seen_specs:
+            seen_specs.add(n)
             unique.append(spec)
 
     if not unique:
@@ -172,26 +234,66 @@ def main() -> None:
         print("No build dependencies needed.", file=sys.stderr)
         return
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".in", delete=False) as tmp:
-        for spec in sorted(unique):
-            tmp.write(spec + "\n")
-        tmp_path = tmp.name
+    # -- Phase 2: compile and recursively resolve build deps of build deps -----
+    compiled_output = _compile(unique)
+    resolved = _parse_compiled(compiled_output)
+    all_known = set(runtime_pkgs.keys()) | set(resolved.keys())
+    # Track which resolved packages we already inspected for build deps.
+    # Separate from seen_specs (which deduplicates requirement specs).
+    checked: set[str] = set()
 
-    result = subprocess.run(
-        ["uv", "pip", "compile", tmp_path, "--no-header", "--no-annotate"],
-        capture_output=True,
-        text=True,
-    )
-    Path(tmp_path).unlink(missing_ok=True)
+    for round_num in range(1, MAX_ROUNDS + 1):
+        new_specs: list[str] = []
+        for pkg_norm, pkg_ver in sorted(resolved.items()):
+            if pkg_norm in checked:
+                continue
+            checked.add(pkg_norm)
+            try:
+                reqs = sdist_build_requires(pkg_norm, pkg_ver)
+            except Exception as exc:
+                print(f"  warn: {pkg_norm}=={pkg_ver}: {exc}", file=sys.stderr)
+                continue
+            for req in reqs:
+                m = re.match(r"([A-Za-z0-9][\w.-]*)", req)
+                if not m:
+                    continue
+                dep_norm = _norm(m.group(1))
+                if dep_norm not in all_known:
+                    new_specs.append(req)
+                    all_known.add(dep_norm)
 
-    if result.returncode != 0:
-        print(result.stderr, file=sys.stderr)
-        sys.exit(1)
+        if not new_specs:
+            break
 
-    Path(output).write_text(HEADER + result.stdout)
-    pkg_count = sum(
-        1 for line in result.stdout.splitlines() if re.match(r"^[A-Za-z0-9][\w.-]*==", line)
-    )
+        print(
+            f"  round {round_num}: found {len(new_specs)} new build dep(s): "
+            f"{[s.split()[0] for s in new_specs]}",
+            file=sys.stderr,
+        )
+        unique.extend(new_specs)
+        compiled_output = _compile(unique)
+        resolved = _parse_compiled(compiled_output)
+        all_known = set(runtime_pkgs.keys()) | set(resolved.keys())
+
+    # -- Phase 3: append exact-pinned versions not satisfied by the resolution --
+    extra_lines: list[str] = []
+    for dep_norm, versions in sorted(exact_pins.items()):
+        resolved_ver = resolved.get(dep_norm)
+        for v in sorted(versions):
+            if v != resolved_ver:
+                raw_name = dep_norm  # best-effort; pip normalizes anyway
+                extra_lines.append(f"{raw_name}=={v}")
+                print(
+                    f"  extra pin: {raw_name}=={v} (resolved {resolved_ver}, also need {v})",
+                    file=sys.stderr,
+                )
+
+    final_output = compiled_output
+    if extra_lines:
+        final_output += "\n".join(extra_lines) + "\n"
+
+    Path(output).write_text(HEADER + final_output)
+    pkg_count = len(resolved) + len(extra_lines)
     print(f"Wrote {output} ({pkg_count} packages)", file=sys.stderr)
 
 

@@ -13,7 +13,7 @@ endif
 endif
 
 .PHONY: install install-all lock test lint format mypy verify eval eval-report e2e image clean help \
-       requirements bump-deps rpm-lockfile
+       requirements bump-deps rpm-lockfile konflux-requirements
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -71,19 +71,15 @@ requirements: pyproject.toml ## Generate requirements.txt files for Konflux herm
 		requirements-build.txt \
 		requirements.x86_64.txt requirements.aarch64.txt
 
+konflux-requirements: ## Resolve RHOAI+PyPI deps for Konflux hermetic builds
+	python3 scripts/konflux_resolve.py --profile cpu
+
 bump-deps: ## Upgrade all dependencies and regenerate requirements
 	$(UV) lock --upgrade
 	$(MAKE) requirements
 
-rpm-lockfile: rpms.in.yaml ubi.repo ## Regenerate rpms.lock.yaml (requires podman + Fedora)
-	$(CONTAINER_RUNTIME) run --rm \
-		-v "$$(pwd):/workdir:z" -w /workdir \
-		-v "$${HOME}/.docker/config.json:/root/.docker/config.json:ro" \
-		registry.fedoraproject.org/fedora:latest bash -c " \
-		dnf install -y -q python3 python3-pip python3-dnf skopeo rpm && \
-		python3 -m pip install -q --break-system-packages \
-			https://github.com/konflux-ci/rpm-lockfile-prototype/archive/refs/heads/main.zip && \
-		rpm-lockfile-prototype --image registry.redhat.io/rhel9/python-312-minimal:latest rpms.in.yaml"
+rpm-lockfile: .konflux/rpms.in.yaml .konflux/redhat.repo ## Regenerate rpms.lock.yaml (requires podman + RH subscription)
+	./scripts/generate-rpm-lock.sh -a $${ACTIVATION_KEY} -g $${ORG_ID}
 
 clean: ## Remove build artifacts and caches
 	rm -rf dist/ build/ *.egg-info .venv .pytest_cache .mypy_cache .ruff_cache node_modules/

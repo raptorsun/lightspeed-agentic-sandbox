@@ -37,7 +37,9 @@ spec:
   - name: build-source-image
     value: "true"
   - name: prefetch-input
-    value: '[{"type": "rpm", "path": "."}, {"type": "pip", "path": ".", "requirements_files": ["requirements.x86_64.txt", "requirements.aarch64.txt"], "requirements_build_files": ["requirements-build.txt"], "binary": {"arch": "x86_64,aarch64"}}, {"type": "npm", "path": "."}, {"type": "generic", "path": "."}]'
+    value: '[{"type": "rpm", "path": ".konflux"}, {"type": "pip", "path": ".", "requirements_files": [".konflux/requirements.hashes.wheel.txt", ".konflux/requirements.hashes.source.txt", ".konflux/requirements.hashes.wheel.pypi.txt", ".konflux/requirements.hermetic.txt"], "requirements_build_files": [".konflux/requirements-build.txt"], "binary": {"packages": "aiosqlite,annotated-doc,annotated-types,anyio,attrs,authlib,certifi,cffi,charset-normalizer,click,cryptography,distro,execnet,fastapi,google-auth,google-genai,googleapis-common-protos,graphviz,griffelib,grpcio,h11,httpcore,httpx,httpx-sse,idna,iniconfig,jiter,joserfc,jsonschema,jsonschema-specifications,maturin,mcp,openai,opentelemetry-api,opentelemetry-exporter-otlp-proto-common,opentelemetry-exporter-otlp-proto-grpc,opentelemetry-proto,opentelemetry-sdk,opentelemetry-semantic-conventions,packaging,pluggy,prometheus-client,protobuf,pyasn1,pyasn1-modules,pycparser,pydantic,pydantic-core,pydantic-settings,pygments,pyjwt,pytest,pytest-asyncio,pytest-xdist,python-dotenv,python-multipart,pyyaml,referencing,requests,rpds-py,sniffio,sse-starlette,starlette,tenacity,tqdm,typing-extensions,typing-inspection,tzlocal,urllib3,uv,uv-build,uvicorn,watchdog,websockets", "os": "linux", "arch": "x86_64,aarch64", "py_version": 312}}, {"type": "npm", "path": "."}, {"type": "generic", "path": "."}]'
+  - name: build-args-file
+    value: build.args
   - name: build-platforms
     value:
     - linux/x86_64
@@ -183,8 +185,6 @@ spec:
       params:
       - name: input
         value: $(params.prefetch-input)
-      - name: mode
-        value: 'permissive'
       - name: enable-package-registry-proxy
         value: $(params.enable-package-registry-proxy)
       - name: SOURCE_ARTIFACT
@@ -200,7 +200,7 @@ spec:
         - name: name
           value: prefetch-dependencies-oci-ta
         - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-prefetch-dependencies-oci-ta:0.3@sha256:92956e75cd4714286f9c0c043f5301d1c0df1d750884edeceee87e0a91cc1975
+          value: quay.io/konflux-ci/tekton-catalog/task-prefetch-dependencies-oci-ta:0.4.1@sha256:ba1a3975a1e7b12ee1d11c4885930bf3540f532ddb57b5b66bb8b1122f41fa65
         - name: kind
           value: task
         resolver: bundles
@@ -315,7 +315,7 @@ spec:
         - name: name
           value: deprecated-image-check
         - name: bundle
-          value: quay.io/konflux-ci/tekton-catalog/task-deprecated-image-check:0.5@sha256:e78d0d3baf3c8cfc1a5ad278196b74032d9568b143a87c7a79ab780fedfb296e
+          value: quay.io/konflux-ci/tekton-catalog/task-deprecated-image-check:0.5@sha256:0ccc688a77e9b7b0b8973c132a1e840844137e77f887be4a0bec8893b0776872
         - name: kind
           value: task
         resolver: bundles
