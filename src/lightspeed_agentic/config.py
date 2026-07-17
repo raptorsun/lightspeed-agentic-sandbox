@@ -8,8 +8,10 @@ SDK reads internally. Called once at startup before provider construction.
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -196,3 +198,26 @@ def resolve_sdk() -> ResolvedSDK:
 
     logger.info("Resolved LIGHTSPEED_PROVIDER=%s → SDK=%s", provider, sdk.name)
     return sdk
+
+
+def parse_reasoning_config() -> dict[str, Any] | None:
+    """Parse LIGHTSPEED_REASONING_CONFIG env var at startup.
+
+    Returns None when absent/empty. Raises ValueError on malformed JSON
+    or non-object types (per configuration.md rule 9a).
+    """
+    raw = os.environ.get("LIGHTSPEED_REASONING_CONFIG", "").strip()
+    if not raw:
+        return None
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"LIGHTSPEED_REASONING_CONFIG contains invalid JSON: {e}") from e
+
+    if not isinstance(parsed, dict):
+        raise ValueError(
+            f"LIGHTSPEED_REASONING_CONFIG must be a JSON object, got {type(parsed).__name__}"
+        )
+
+    return parsed

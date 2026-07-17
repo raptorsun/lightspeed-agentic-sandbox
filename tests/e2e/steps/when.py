@@ -9,6 +9,15 @@ from pytest_bdd import when
 from tests.e2e.runner import RunHttpResult, get_json
 
 
+@when("I POST run with a simple reasoning query")
+def post_simple_reasoning(bdd_context: dict[str, Any], run_runner: Any) -> None:
+    """POST /v1/agent/run with a simple query that benefits from reasoning."""
+    query = "What is 17 * 23? Reply with just the number."
+    res = run_runner(query)
+    bdd_context["http_result"] = res
+    bdd_context["response_body"] = res.body
+
+
 @when("I GET /health")
 def get_health(bdd_context: dict[str, Any], server_url: str) -> None:
     """GET /health and store the response on the BDD context."""

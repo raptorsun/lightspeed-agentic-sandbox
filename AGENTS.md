@@ -229,6 +229,7 @@ The Konflux pipeline will prefetch the new versions on the next PR.
 | `LIGHTSPEED_PROVIDER_REGION` | Cloud region (Vertex, Bedrock) |
 | `LIGHTSPEED_PROVIDER_API_VERSION` | API version (Azure) |
 | `LIGHTSPEED_CAPTURE_CONTENT` | Opt-in LLM content capture for audit (gen_ai.completion/reasoning_content) |
+| `LIGHTSPEED_REASONING_CONFIG` | JSON object with reasoning/thinking params, parsed at startup, passed to adapters |
 | `LIGHTSPEED_SKILLS_DIR` | Skills root mounted by the FastAPI app, default `/app/skills` |
 | `ANTHROPIC_MODEL` | Default Claude model for query routes |
 | `GEMINI_MODEL` | Default Gemini model for query routes |

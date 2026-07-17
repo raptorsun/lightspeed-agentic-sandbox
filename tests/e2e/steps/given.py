@@ -203,6 +203,22 @@ def prepare_adversarial(bdd_context: dict[str, Any]) -> None:
 # --- MCP scenarios ---
 
 
+@given("the sandbox service is running with reasoning configured")
+def sandbox_running_with_reasoning(server_url: str) -> None:
+    import json as _json
+
+    import pytest
+
+    assert server_url.startswith("http"), f"unexpected server URL: {server_url!r}"
+    raw = os.environ.get("LIGHTSPEED_REASONING_CONFIG", "").strip()
+    if not raw:
+        pytest.skip("LIGHTSPEED_REASONING_CONFIG not set — reasoning tests skipped")
+    parsed = _json.loads(raw)
+    assert isinstance(parsed, dict), (
+        f"LIGHTSPEED_REASONING_CONFIG must be a JSON object, got: {raw!r}"
+    )
+
+
 @given("the sandbox service is running with MCP servers configured")
 def sandbox_running_with_mcp(server_url: str) -> None:
     import json as _json

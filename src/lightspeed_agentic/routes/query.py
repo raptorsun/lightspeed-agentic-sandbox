@@ -74,6 +74,7 @@ def register_query_routes(
     audit_enabled: bool = False,
     capture_content: bool = False,
     mcp_servers: list[ResolvedMCPServer] | None = None,
+    reasoning_config: dict[str, Any] | None = None,
 ) -> None:
     def _record_metrics(*, in_tokens: int, out_tokens: int, elapsed: float) -> None:
         if in_tokens:
@@ -174,6 +175,7 @@ def register_query_routes(
                             cwd=skills_dir,
                             output_schema=req.outputSchema,
                             mcp_servers=mcp_servers or [],
+                            reasoning_config=reasoning_config,
                         )
                     )
                     event_logger = EventLogger("run")
