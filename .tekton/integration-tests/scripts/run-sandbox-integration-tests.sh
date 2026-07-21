@@ -15,7 +15,7 @@
 set -euo pipefail
 trap 'echo "error: $0 line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
 
-PROVIDER="${1:?Usage: $0 <provider> (claude|gemini|openai)}"
+PROVIDER="${1:?Usage: $0 <provider> (deepagents|gemini|openai)}"
 CRED_PATH="/var/run/credentials/token"
 
 if [ ! -f "${CRED_PATH}" ]; then
@@ -25,7 +25,7 @@ fi
 
 # --- Set up provider credentials ---
 case "${PROVIDER}" in
-  claude)
+  deepagents)
     mkdir -p "${HOME}/.config/gcloud"
     cp "${CRED_PATH}" "${HOME}/.config/gcloud/application_default_credentials.json"
     export GOOGLE_APPLICATION_CREDENTIALS="${CRED_PATH}"
