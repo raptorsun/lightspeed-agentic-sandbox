@@ -205,7 +205,7 @@ class DeepAgentsProvider(AgentProvider):
 
             client = MultiServerMCPClient(
                 {
-                    server.name: {
+                    server.name: {  # type: ignore[misc]
                         "transport": "http",
                         "url": server.url,
                         "headers": {h.name: h.value for h in server.headers},
@@ -238,7 +238,7 @@ class DeepAgentsProvider(AgentProvider):
         )
         input_state = {"messages": [{"role": "user", "content": options.prompt}]}
 
-        async for item in agent.astream(
+        async for item in agent.astream(  # type: ignore[call-overload]
             input_state,
             config=stream_config,
             stream_mode=stream_modes,
