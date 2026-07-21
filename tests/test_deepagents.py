@@ -45,9 +45,17 @@ def _mock_deepagents_modules(
     *,
     mcp_client_cls: MagicMock | None = None,
 ) -> dict[str, Any]:
+    mock_tool_strategy = MagicMock(side_effect=lambda schema, **kw: schema)
+    mock_structured_output = MagicMock(ToolStrategy=mock_tool_strategy)
+    mock_agents = MagicMock(structured_output=mock_structured_output)
+    mock_langchain = MagicMock(agents=mock_agents)
+
     modules: dict[str, Any] = {
         "deepagents": MagicMock(create_deep_agent=mock_create),
         "deepagents.backends": MagicMock(LocalShellBackend=MagicMock(return_value=mock_backend)),
+        "langchain": mock_langchain,
+        "langchain.agents": mock_agents,
+        "langchain.agents.structured_output": mock_structured_output,
         "langchain_anthropic": MagicMock(),
         "langchain_core": MagicMock(),
         "langchain_core.messages": MagicMock(),

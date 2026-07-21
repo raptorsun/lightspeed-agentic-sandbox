@@ -180,7 +180,7 @@ class DeepAgentsProvider(AgentProvider):
         )
 
         chat_model = _resolve_model(options.model, options.reasoning_config)
-        backend = LocalShellBackend(root_dir=options.cwd)
+        backend = LocalShellBackend(root_dir=options.cwd, inherit_env=True)
 
         agent_kwargs: dict[str, Any] = {
             "model": chat_model,
@@ -190,10 +190,14 @@ class DeepAgentsProvider(AgentProvider):
         }
 
         if options.output_schema:
-            if isinstance(options.output_schema, dict):
-                agent_kwargs["response_format"] = _json_schema_to_pydantic(options.output_schema)
-            else:
-                agent_kwargs["response_format"] = options.output_schema
+            from langchain.agents.structured_output import ToolStrategy
+
+            schema = (
+                _json_schema_to_pydantic(options.output_schema)
+                if isinstance(options.output_schema, dict)
+                else options.output_schema
+            )
+            agent_kwargs["response_format"] = ToolStrategy(schema=schema)
 
         mcp_tools: list[Any] = []
         if options.mcp_servers:

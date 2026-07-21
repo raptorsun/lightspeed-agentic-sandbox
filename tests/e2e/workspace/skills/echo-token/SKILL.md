@@ -1,3 +1,8 @@
+---
+name: echo-token
+description: Generate a verification token and write it to disk. Use when asked to produce an e2e test token.
+---
+
 # echo-token
 
 Generate a verification token and write it to disk.
