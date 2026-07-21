@@ -18,6 +18,11 @@ trap 'echo "error: $0 line $LINENO: command \"$BASH_COMMAND\" exited with status
 PROVIDER="${1:?Usage: $0 <provider> (deepagents|gemini|openai)}"
 CRED_PATH="/var/run/credentials/token"
 
+# Accept "claude" as a legacy alias until Konflux IntegrationTestScenario CRs are updated.
+if [[ "${PROVIDER}" == "claude" ]]; then
+    PROVIDER="deepagents"
+fi
+
 if [ ! -f "${CRED_PATH}" ]; then
     echo "error: credential file not found at ${CRED_PATH}" >&2
     exit 1
