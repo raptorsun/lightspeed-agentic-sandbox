@@ -171,10 +171,10 @@ class TestResolveModel:
         monkeypatch.setenv("AWS_REGION", "us-east-1")
 
         mock_bedrock = MagicMock()
-        mock_module = MagicMock()
-        mock_module.ChatAnthropicBedrock = mock_bedrock
+        mock_aws_module = MagicMock()
+        mock_aws_module.ChatAnthropicBedrock = mock_bedrock
 
-        with patch.dict(sys.modules, {"langchain_anthropic": mock_module}):
+        with patch.dict(sys.modules, {"langchain_aws": mock_aws_module}):
             from lightspeed_agentic.providers.deepagents import _resolve_model
 
             _resolve_model("claude-sonnet-4-6", reasoning_config=None)

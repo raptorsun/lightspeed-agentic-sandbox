@@ -22,7 +22,7 @@ The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs insid
 
 6. At startup, the process constructs a single provider instance via the factory, builds an API router with environment-resolved defaults, and serves on port 8080.
 
-7. The provider is selected once at startup via `LIGHTSPEED_AGENT_PROVIDER` and cannot change during the process lifetime.
+7. The provider is selected once at startup via `LIGHTSPEED_PROVIDER` and cannot change during the process lifetime.
 
 8. Model resolution happens once at router construction time via provider-specific environment variables, with a package-level default fallback.
 
@@ -38,7 +38,7 @@ The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs insid
 
 | Field/Flag | Type | Default | Description |
 |---|---|---|---|
-| `LIGHTSPEED_AGENT_PROVIDER` | string | `anthropic` | Selects the provider backend (resolves to `deepagents`, `gemini`, or `openai` SDK) |
+| `LIGHTSPEED_PROVIDER` | string | `anthropic` | Selects the provider backend (resolves to `deepagents`, `gemini`, or `openai` SDK) |
 | `LIGHTSPEED_SKILLS_DIR` | string | `/app/skills` | Skill root and provider working directory |
 | `ANTHROPIC_MODEL` / `GEMINI_MODEL` / `OPENAI_MODEL` | string | `claude-opus-4-6` | Per-provider model override |
 

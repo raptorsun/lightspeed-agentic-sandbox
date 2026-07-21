@@ -56,7 +56,7 @@ def _resolve_model(model: str, reasoning_config: dict[str, Any] | None = None) -
         return ChatAnthropicVertex(**kwargs)
 
     if os.environ.get("CLAUDE_CODE_USE_BEDROCK") == "1":
-        from langchain_anthropic import ChatAnthropicBedrock
+        from langchain_aws import ChatAnthropicBedrock
 
         kwargs = {
             "model": model,
