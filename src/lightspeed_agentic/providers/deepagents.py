@@ -137,16 +137,14 @@ def _process_ai_message(
         btype = block["type"] if isinstance(block, dict) else getattr(block, "type", "")
         if btype == "reasoning":
             reasoning = (
-                block.get("reasoning", "") if isinstance(block, dict)
+                block.get("reasoning", "")
+                if isinstance(block, dict)
                 else getattr(block, "reasoning", "")
             )
             events.append(ThinkingDeltaEvent(thinking=reasoning))
             events.append(ContentBlockStopEvent())
         elif btype == "text":
-            text = (
-                block.get("text", "") if isinstance(block, dict)
-                else getattr(block, "text", "")
-            )
+            text = block.get("text", "") if isinstance(block, dict) else getattr(block, "text", "")
             if text:
                 events.append(TextDeltaEvent(text=text))
                 text_delta += text

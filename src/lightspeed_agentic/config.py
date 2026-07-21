@@ -32,7 +32,7 @@ _DEFAULT_BEDROCK_REGION = "us-east-1"
 class ResolvedSDK:
     """Result of resolving LIGHTSPEED_* env vars to an SDK backend."""
 
-    name: str  # "claude", "gemini", "openai"
+    name: str  # "deepagents", "gemini", "openai"
     expected_envs: tuple[str, ...]  # credential env vars expected from envFrom
     probe_url: str  # R2 reachability probe base URL
 

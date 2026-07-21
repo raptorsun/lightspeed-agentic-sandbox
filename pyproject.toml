@@ -19,17 +19,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-claude = ["claude-agent-sdk>=0.1.81"]
+deepagents = [
+    "deepagents>=0.6.12",
+    "langchain-anthropic>=1.4.8",
+    "langchain-google-vertexai>=3.2.4",
+    "langchain-aws>=1.6.2",
+    "langchain-mcp-adapters>=0.3.0",
+]
 gemini = ["google-adk>=1.33.0"]
 openai = ["openai-agents>=0.17.2"]
-all = ["lightspeed-agentic[claude,gemini,openai]"]
+all = ["lightspeed-agentic[deepagents,gemini,openai]"]
 dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "httpx>=0.28.1",
     "mypy>=1.20.2",
     "ruff>=0.15.12",
-    "lightspeed-agentic[claude,gemini,openai]",
+    "lightspeed-agentic[deepagents,gemini,openai]",
 ]
 eval = ["pytest>=9.0.3", "pytest-asyncio>=1.3.0", "pytest-timeout>=2.4.0", "pytest-xdist>=3.8.0", "jsonschema>=4.26.0"]
 e2e = [

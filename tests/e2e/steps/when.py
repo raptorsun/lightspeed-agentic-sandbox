@@ -48,7 +48,7 @@ def post_echo_token_query(bdd_context: dict[str, Any], run_runner: Any, provider
     kwargs: dict[str, Any] = {}
     if "system_prompt" in bdd_context:
         kwargs["system_prompt"] = bdd_context["system_prompt"]
-    # Claude/Gemini wrap JSON in markdown fences without schema; OpenAI needs schema omitted.
+    # DeepAgents/Gemini wrap JSON in markdown fences without schema; OpenAI needs schema omitted.
     output_schema = None if provider_name == "openai" else bdd_context.get("output_schema")
     res: RunHttpResult = run_runner(query, output_schema=output_schema, **kwargs)
     bdd_context["http_result"] = res

@@ -74,11 +74,11 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
 16. **Python load path.** Runtime sets process environment so application source under `/opt/lightspeed/src` and installed site-packages are on `PYTHONPATH` as defined in the image.
 
-17. **Hermetic / Konflux build inputs.** Release images are built with network isolation after prefetch: per-architecture Python requirements files with hashes, RPM lockfile input, and generic binary lockfile for oc/ripgrep. Regeneration of those artifacts is via the project automation commands (see implementation notes in `how/provider-architecture.md`). [PLANNED: OLS-3473] npm lockfile for Claude Code CLI removed.
+17. **Hermetic / Konflux build inputs.** Release images are built with network isolation after prefetch: per-architecture Python requirements files with hashes, RPM lockfile input, and generic binary lockfile for oc/ripgrep. Regeneration of those artifacts is via the project automation commands (see implementation notes in `how/provider-architecture.md`).
 
 18. **Non-hermetic fallback.** When prefetch directories are absent, the container build recipe may fetch selected binaries from external URLs for developer builds.
 
-19. **System packages — minimum expectations.** Runtime image includes Bash, Git, OpenShift CLI (`oc`), Kubernetes CLI (`kubectl`), ripgrep, and supporting OS utilities for debugging and archives per the container recipe. [PLANNED: OLS-3473] Node.js removed — was only needed for Claude Code CLI.
+19. **System packages — minimum expectations.** Runtime image includes Bash, Git, OpenShift CLI (`oc`), Kubernetes CLI (`kubectl`), ripgrep, and supporting OS utilities for debugging and archives per the container recipe.
 
 20. **MCP server configuration.** When `LIGHTSPEED_MCP_SERVERS` is set, the sandbox MUST parse it as a JSON array of MCP server entries. Each entry has the shape `{"name": string, "url": string, "timeout": int, "headers": [{"name": string, "source": string, "secretName"?: string}]}`. `secretName` is REQUIRED when `source` is `Secret`; the sandbox MUST reject entries where `source` is `Secret` and `secretName` is missing or empty. The sandbox MUST build SDK-native MCP client configs from this array and pass them into provider adapters via `ProviderQueryOptions.mcp_servers` (see `provider-contract.md`). When the env var is absent or empty, no MCP servers are configured.
 
@@ -127,7 +127,6 @@ Cross-references: how options are consumed in code → `how/provider-architectur
 
 ## Planned Changes
 
-- Remove legacy Claude SDK (`claude-agent-sdk`, `@anthropic-ai/claude-code` binary, Node.js runtime) from container image. Config paths `anthropic`, `vertex/anthropic`, and `bedrock` now resolve to `deepagents`. [PLANNED: OLS-3473]
 - TLS termination, mTLS, and network policies for operator-to-sandbox traffic. [PLANNED: OLS-3038–OLS-3043]
 - Konflux pipeline and lockfile policy updates as Red Hat platform requirements evolve. [PLANNED: OLS-2894]
 - `Client` header source type resolution when client-passthrough MCP auth flows are implemented.

@@ -11,7 +11,6 @@ from lightspeed_agentic.mcp import (
     ResolvedMCPHeader,
     ResolvedMCPServer,
     parse_mcp_servers,
-    to_claude_mcp_config,
     to_gemini_mcp_toolsets,
     to_openai_mcp_servers,
 )
@@ -240,32 +239,6 @@ class TestParseMCPServers:
         with patch.dict(os.environ, {"LIGHTSPEED_MCP_SERVERS": servers_json}):
             result = parse_mcp_servers()
             assert result[0].headers == []
-
-
-class TestClaudeAdapter:
-    def test_basic_config(self):
-        servers = [ResolvedMCPServer(name="ocp-mcp", url="https://ocp:8443/mcp")]
-        config = to_claude_mcp_config(servers)
-        assert config == {"ocp-mcp": {"type": "http", "url": "https://ocp:8443/mcp"}}
-
-    def test_with_headers(self):
-        servers = [
-            ResolvedMCPServer(
-                name="ext",
-                url="http://ext:9090/mcp",
-                headers=[ResolvedMCPHeader(name="Authorization", value="Bearer tok")],
-            )
-        ]
-        config = to_claude_mcp_config(servers)
-        assert config["ext"]["headers"] == {"Authorization": "Bearer tok"}
-
-    def test_multiple_servers(self):
-        servers = [
-            ResolvedMCPServer(name="a", url="http://a/mcp"),
-            ResolvedMCPServer(name="b", url="http://b/mcp"),
-        ]
-        config = to_claude_mcp_config(servers)
-        assert set(config.keys()) == {"a", "b"}
 
 
 class TestGeminiAdapter:

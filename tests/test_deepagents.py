@@ -151,10 +151,13 @@ class TestResolveModel:
         mock_garden_module = MagicMock()
         mock_garden_module.ChatAnthropicVertex = mock_vertex
 
-        with patch.dict(sys.modules, {
-            "langchain_google_vertexai": MagicMock(),
-            "langchain_google_vertexai.model_garden": mock_garden_module,
-        }):
+        with patch.dict(
+            sys.modules,
+            {
+                "langchain_google_vertexai": MagicMock(),
+                "langchain_google_vertexai.model_garden": mock_garden_module,
+            },
+        ):
             from lightspeed_agentic.providers.deepagents import _resolve_model
 
             _resolve_model("claude-sonnet-4-6", reasoning_config=None)

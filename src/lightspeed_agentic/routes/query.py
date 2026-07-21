@@ -137,7 +137,7 @@ def register_query_routes(
         reasoning_tokens = 0
         response_model = ""
 
-        otel_provider_name = {"claude": "anthropic", "gemini": "google"}.get(
+        otel_provider_name = {"deepagents": "anthropic", "gemini": "google"}.get(
             provider.name, provider.name
         )
         span_attrs: dict[str, Any] = {

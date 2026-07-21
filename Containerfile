@@ -50,20 +50,6 @@ RUN if [ -f /cachi2/cachi2.env ]; then \
         uv pip install --python .venv/bin/python --no-cache .[all]; \
     fi
 
-# Install claude-code CLI.
-# In hermetic builds (Konflux), cachi2 prefetches npm packages and sets the
-# registry via cachi2.env — use npm ci against the lockfile.
-# In non-hermetic builds (OpenShift BuildConfig), fall back to npm install -g.
-COPY package.json package-lock.json ./
-RUN dnf install -y --nodocs nodejs npm && dnf clean all
-RUN if [ -f /cachi2/cachi2.env ]; then \
-        . /cachi2/cachi2.env && \
-        npm ci --ignore-scripts; \
-    else \
-        npm install -g @anthropic-ai/claude-code --ignore-scripts && \
-        cp -a /usr/local/lib/node_modules /app/node_modules; \
-    fi
-
 # ---------------------------------------------------------------------------
 # origincli stage: provides oc (kubectl is a symlink to oc in this image)
 # ---------------------------------------------------------------------------
@@ -87,7 +73,7 @@ WORKDIR /app
 # System packages (resolved from rpms.in.yaml via rpm prefetch).
 # Split into functional groups for readability.
 
-# Claude Code SDK requirements
+# Agent runtime requirements
 RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs \
     bash git wget jq \
     && ${RUNTIME_DNF_COMMAND} clean all
@@ -105,16 +91,8 @@ RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs \
     && (${RUNTIME_DNF_COMMAND} install -y --nodocs tcpdump || true) \
     && ${RUNTIME_DNF_COMMAND} clean all
 
-# Node.js runtime (for claude-code CLI)
-RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs nodejs \
-    && ${RUNTIME_DNF_COMMAND} clean all
-
 # Copy Python site-packages from builder
 COPY --from=builder /app/.venv/lib/python3.12/site-packages /opt/app-root/lib64/python3.12/site-packages
-
-# Copy claude-code npm installation from builder
-COPY --from=builder /app/node_modules /app/node_modules
-RUN ln -s /app/node_modules/@anthropic-ai/claude-code/bin/claude.exe /usr/local/bin/claude
 
 # oc from the origincli stage; kubectl is a symlink to oc in that image
 COPY --from=origincli /usr/bin/oc /usr/bin/oc
@@ -150,10 +128,10 @@ CMD ["python3.12", "-m", "uvicorn", "lightspeed_agentic.app:app", "--host", "0.0
 
 LABEL name="openshift-lightspeed/lightspeed-agentic-sandbox-rhel9" \
       summary="Multi-provider agent sandbox for OpenShift Lightspeed" \
-      description="Python agent with Claude, Gemini, and OpenAI provider support" \
+      description="Python agent with DeepAgents, Gemini, and OpenAI provider support" \
       cpe="cpe:/a:redhat:openshift_lightspeed:1::el9" \
       com.redhat.component="openshift-lightspeed" \
       io.k8s.display-name="OpenShift Lightspeed Agentic Sandbox" \
-      io.k8s.description="Python agent with Claude, Gemini, and OpenAI provider support" \
+      io.k8s.description="Python agent with DeepAgents, Gemini, and OpenAI provider support" \
       io.openshift.tags="openshift-lightspeed,ols" \
       konflux.additional-tags="latest"
