@@ -61,7 +61,7 @@ def _resolve_anthropic(model: str | None, url: str | None) -> ResolvedSDK:
     _setenv_if_value("ANTHROPIC_BASE_URL", url)
     probe = url or "https://api.anthropic.com/"
     return ResolvedSDK(
-        "claude",
+        "deepagents",
         ("ANTHROPIC_API_KEY",),
         probe,
     )
@@ -91,7 +91,7 @@ def _resolve_vertex(
             )
             _setenv_if_value("ANTHROPIC_BASE_URL", url)
             return ResolvedSDK(
-                "claude",
+                "deepagents",
                 ("GOOGLE_APPLICATION_CREDENTIALS",),
                 url or vertex_probe,
             )
@@ -163,7 +163,7 @@ def _resolve_bedrock(
     _setenv_if_value("AWS_REGION", region)
     _setenv_if_value("ANTHROPIC_BASE_URL", url)
     return ResolvedSDK(
-        "claude",
+        "deepagents",
         ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
         url or _bedrock_probe_url(region),
     )

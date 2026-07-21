@@ -7,6 +7,10 @@ from lightspeed_agentic.types import AgentProvider
 
 def create_provider(name: str) -> AgentProvider:
     match name:
+        case "deepagents":
+            from lightspeed_agentic.providers.deepagents import DeepAgentsProvider
+
+            return DeepAgentsProvider()
         case "claude":
             from lightspeed_agentic.providers.claude import ClaudeProvider
 
@@ -20,4 +24,6 @@ def create_provider(name: str) -> AgentProvider:
 
             return OpenAIProvider()
         case _:
-            raise ValueError(f"Unknown provider: {name}. Supported: claude, gemini, openai")
+            raise ValueError(
+                f"Unknown provider: {name}. Supported: deepagents, claude, gemini, openai"
+            )

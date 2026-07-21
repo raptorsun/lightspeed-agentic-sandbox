@@ -17,6 +17,7 @@ from lightspeed_agentic.routes.query import register_query_routes
 from lightspeed_agentic.types import DEFAULT_MODEL, AgentProvider
 
 _MODEL_ENV_VARS = {
+    "deepagents": "ANTHROPIC_MODEL",
     "claude": "ANTHROPIC_MODEL",
     "gemini": "GEMINI_MODEL",
     "openai": "OPENAI_MODEL",

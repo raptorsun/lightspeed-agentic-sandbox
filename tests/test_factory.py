@@ -19,7 +19,7 @@ def test_create_provider_requires_name():
 
 def test_create_provider_explicit_name():
     # SDK might not be installed — just verify the right import is attempted
-    for name in ("claude", "gemini", "openai"):
+    for name in ("deepagents", "gemini", "openai"):
         try:
             provider = create_provider(name)
             assert provider.name == name
