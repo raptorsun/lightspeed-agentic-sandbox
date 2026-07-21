@@ -8,32 +8,54 @@
 #
 # Hermetic build: all dependencies are prefetched by Konflux/Hermeto.
 # Network access is disabled during build.
+#
+# Base images are parameterized via build args:
+#   Konflux (hermetic): overrides via build.args → RHOAI base image
+#   OpenShift CI (non-hermetic): uses defaults below → standard RHEL images
+ARG BUILDER_BASE_IMAGE=registry.redhat.io/ubi9/python-312:latest
+ARG RUNTIME_BASE_IMAGE=registry.redhat.io/ubi9/python-312-minimal:latest
+ARG RUNTIME_DNF_COMMAND=microdnf
 
 # ---------------------------------------------------------------------------
 # Builder stage: install Python deps from prefetched requirements
 # ---------------------------------------------------------------------------
-FROM registry.redhat.io/rhel9/python-312:latest AS builder
+FROM ${BUILDER_BASE_IMAGE} AS builder
 
 USER 0
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src/ src/
-COPY requirements.*.txt ./
+COPY .konflux/requirements.hashes.*.txt .konflux/requirements.hermetic.txt ./
 
-# Install Python packages from the platform-specific requirements file.
+# Install Python packages from RHOAI wheels + PyPI sdist.
 # In hermetic builds, Cachi2 sets PIP_* env vars pointing to prefetched deps.
-# The unset avoids conflicts between Cachi2's --home and pip's --target.
-RUN unset PIP_INSTALL_OPTIONS PIP_TARGET PIP_HOME PIP_PREFIX 2>/dev/null; \
-    pip3.12 install --no-cache-dir --target /app/site-packages \
-        -r requirements.$(uname -m).txt
+# The sed strips --index-url lines because uv rejects multiple index URLs
+# when using --no-index --find-links.
+RUN if [ -f /cachi2/cachi2.env ]; then \
+        . /cachi2/cachi2.env && \
+        pip3.12 install --no-cache-dir uv && \
+        uv venv && \
+        for f in requirements.hashes.wheel.txt requirements.hashes.source.txt requirements.hashes.wheel.pypi.txt; do \
+            sed -i '/^--index-url /d' "$f"; \
+        done && \
+        uv pip install --python .venv/bin/python --no-cache --no-index \
+            --find-links ${PIP_FIND_LINKS} --no-deps \
+            -r requirements.hashes.wheel.txt \
+            -r requirements.hashes.source.txt \
+            -r requirements.hashes.wheel.pypi.txt; \
+    else \
+        pip3.12 install --no-cache-dir uv && \
+        uv venv && \
+        uv pip install --python .venv/bin/python --no-cache .[all]; \
+    fi
 
 # Install claude-code CLI.
 # In hermetic builds (Konflux), cachi2 prefetches npm packages and sets the
 # registry via cachi2.env — use npm ci against the lockfile.
 # In non-hermetic builds (OpenShift BuildConfig), fall back to npm install -g.
 COPY package.json package-lock.json ./
-RUN dnf install -y --nodocs nodejs && dnf clean all
+RUN dnf install -y --nodocs nodejs npm && dnf clean all
 RUN if [ -f /cachi2/cachi2.env ]; then \
         . /cachi2/cachi2.env && \
         npm ci --ignore-scripts; \
@@ -55,7 +77,9 @@ FROM registry.redhat.io/ubi9/podman:9.8 AS podman
 # ---------------------------------------------------------------------------
 # Runtime stage: minimal image with only what the agent needs
 # ---------------------------------------------------------------------------
-FROM registry.redhat.io/rhel9/python-312-minimal:latest
+FROM ${RUNTIME_BASE_IMAGE}
+
+ARG RUNTIME_DNF_COMMAND=microdnf
 
 USER 0
 WORKDIR /app
@@ -64,28 +88,29 @@ WORKDIR /app
 # Split into functional groups for readability.
 
 # Claude Code SDK requirements
-RUN microdnf install -y --nodocs \
+RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs \
     bash git wget jq \
-    && microdnf clean all
+    && ${RUNTIME_DNF_COMMAND} clean all
 
 # SRE debugging toolkit
 # tcpdump is installed separately with || true because it is not
 # available in the UBI9 subset repos used by ci-operator builds (OpenShift CI).
 # Konflux hermetic builds pre-fetch it via the RPM lockfile so the production
 # image still includes tcpdump.
-RUN microdnf install -y --nodocs \
+RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs \
     procps-ng iproute bind-utils net-tools openssl \
     lsof strace \
     less vim-minimal findutils file diffutils \
     skopeo unzip tar gzip \
-    && (microdnf install -y --nodocs tcpdump || true) \
-    && microdnf clean all
+    && (${RUNTIME_DNF_COMMAND} install -y --nodocs tcpdump || true) \
+    && ${RUNTIME_DNF_COMMAND} clean all
 
 # Node.js runtime (for claude-code CLI)
-RUN microdnf install -y --nodocs nodejs && microdnf clean all
+RUN ${RUNTIME_DNF_COMMAND} install -y --nodocs nodejs \
+    && ${RUNTIME_DNF_COMMAND} clean all
 
 # Copy Python site-packages from builder
-COPY --from=builder /app/site-packages /opt/app-root/lib64/python3.12/site-packages
+COPY --from=builder /app/.venv/lib/python3.12/site-packages /opt/app-root/lib64/python3.12/site-packages
 
 # Copy claude-code npm installation from builder
 COPY --from=builder /app/node_modules /app/node_modules

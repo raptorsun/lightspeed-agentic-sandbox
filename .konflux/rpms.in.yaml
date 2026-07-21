@@ -3,6 +3,7 @@ packages:
   - jq
   - wget
   - nodejs
+  - npm
   - procps-ng
   - iproute
   - bind-utils
@@ -20,8 +21,8 @@ packages:
   - unzip
   - tar
   - gzip
-  - python3.12
-  - python3.12-pip
 contentOrigin:
-  repofiles: ["./ubi.repo"]
-arches: [x86_64, aarch64]
+  repofiles: ["redhat.repo"]
+arches:
+  - aarch64
+  - x86_64
