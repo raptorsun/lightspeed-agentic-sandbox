@@ -37,7 +37,7 @@ No prompt hacks, no begging for output format, no telling the model what command
 
 | Provider | Default Model | Override Env Var |
 |---|---|---|
-| `claude` | `claude-sonnet-4-6` | `ANTHROPIC_MODEL` |
+| `deepagents` | `claude-sonnet-4-6` | `ANTHROPIC_MODEL` |
 | `gemini` | `gemini-3.1-pro-preview` | `GEMINI_MODEL` |
 | `openai` | `gpt-5.4` | `OPENAI_MODEL` |
 
@@ -47,7 +47,7 @@ Providers without valid credentials are automatically skipped.
 
 | Provider | Primary | Fallbacks |
 |---|---|---|
-| `claude` | `ANTHROPIC_API_KEY` | Vertex AI (`CLAUDE_CODE_USE_VERTEX=1` + gcloud ADC), Bedrock (`CLAUDE_CODE_USE_BEDROCK=1` + AWS creds) |
+| `deepagents` | `ANTHROPIC_API_KEY` | Vertex AI (`CLAUDE_CODE_USE_VERTEX=1` + gcloud ADC), Bedrock (`CLAUDE_CODE_USE_BEDROCK=1` + AWS creds) |
 | `gemini` | `GOOGLE_API_KEY` | `GEMINI_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS` file, gcloud ADC |
 | `openai` | `OPENAI_API_KEY` | `OPENAI_BASE_URL` (keyless endpoints) |
 
@@ -60,10 +60,10 @@ Providers without valid credentials are automatically skipped.
 make eval
 
 # Single provider
-make eval EVAL_ARGS="-k claude"
+make eval EVAL_ARGS="-k deepagents"
 
 # Override model for a run
-ANTHROPIC_MODEL=claude-opus-4-6 make eval EVAL_ARGS="-k claude"
+ANTHROPIC_MODEL=claude-opus-4-6 make eval EVAL_ARGS="-k deepagents"
 
 # Verbose with stdout (debugging)
 make eval EVAL_ARGS="-s"

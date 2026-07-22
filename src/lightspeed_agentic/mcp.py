@@ -138,19 +138,6 @@ def _headers_dict(server: ResolvedMCPServer) -> dict[str, str]:
     return {h.name: h.value for h in server.headers}
 
 
-def to_claude_mcp_config(servers: list[ResolvedMCPServer]) -> dict[str, Any]:
-    """Convert to claude-agent-sdk McpServerConfig format (dict keyed by name)."""
-    from claude_agent_sdk.types import McpHttpServerConfig
-
-    result: dict[str, Any] = {}
-    for s in servers:
-        config = McpHttpServerConfig(type="http", url=s.url)
-        if s.headers:
-            config["headers"] = _headers_dict(s)
-        result[s.name] = config
-    return result
-
-
 def to_gemini_mcp_toolsets(servers: list[ResolvedMCPServer]) -> list[Any]:
     """Convert to google-adk McpToolset instances."""
     from google.adk.tools.mcp_tool.mcp_toolset import (  # type: ignore[attr-defined]

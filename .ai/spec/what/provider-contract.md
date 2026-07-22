@@ -10,7 +10,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 2. **Text delta (`text_delta`).** Carries incremental natural-language or assistant text chunks for logging or streaming use.
 
-3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text. When reasoning is configured and the SDK produces reasoning output, all adapters MUST emit `thinking_delta` events. Claude emits from `thinking_delta` stream events. Gemini MUST emit from `ThinkingConfig` thought parts when `include_thoughts` is enabled. OpenAI MUST emit from reasoning items in the response stream.
+3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text. When reasoning is configured and the SDK produces reasoning output, all adapters MUST emit `thinking_delta` events. DeepAgents emits from `AIMessage.content_blocks` with `type == "reasoning"`. Claude emits from `thinking_delta` stream events. Gemini MUST emit from `ThinkingConfig` thought parts when `include_thoughts` is enabled. OpenAI MUST emit from reasoning items in the response stream.
 
 4. **Content block stop (`content_block_stop`).** Signals that a content or tool block has completed; used by logging to flush buffered thinking.
 
@@ -38,7 +38,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 16. **ProviderQueryOptions — `stream`.** When true, adapters that support partial streaming should yield deltas; when false, they may batch. The HTTP `POST /run` path does not set this flag from the request body.
 
-17. **ProviderQueryOptions — `mcp_servers`.** Optional list of resolved MCP server configs. Each entry carries `name`, `url`, `timeout`, and a `headers` dict of resolved header name-value pairs. When non-empty, adapters MUST wire these servers into their SDK's native MCP client mechanism (see rules 31–33). When empty or absent, no MCP servers are configured.
+17. **ProviderQueryOptions — `mcp_servers`.** Optional list of resolved MCP server configs. Each entry carries `name`, `url`, `timeout`, and a `headers` dict of resolved header name-value pairs. When non-empty, adapters MUST wire these servers into their SDK's native MCP client mechanism (see rules 31–34). When empty or absent, no MCP servers are configured.
 
 18. **ProviderQueryOptions — `reasoning_config`.** Optional dict (JSON object). When present, adapters MUST map it to their SDK's native reasoning/thinking parameters. When absent or `None`, adapters MUST NOT set any reasoning parameters and SDK defaults apply. Contents are provider- and model-specific; each adapter picks the keys it recognizes and maps them to SDK parameters — unrecognized keys are silently ignored. Invalid values on recognized keys are rejected by the upstream SDK/API at invocation time, not by the adapter.
 
@@ -50,9 +50,9 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 22. **Thin-adapter principle.** Providers MUST delegate tool execution, command invocation, and skill discovery to their SDKs. Adapters MUST NOT implement custom tool executors that duplicate SDK behavior except for minimal glue (e.g., auto-confirm, path layout).
 
-23. **Structured output.** When `output_schema` is set: Gemini sets native response MIME type and response schema on the content config; OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI's strict mode requires.
+23. **Structured output.** When `output_schema` is set: DeepAgents converts the JSON schema to a Pydantic model via `response_format` (supports `properties`, `required`, `type`, `enum`, nested objects, and arrays; does not support `$ref`, `oneOf`, `allOf`, `additionalProperties`). Gemini sets native response MIME type and response schema on the content config. OpenAI wraps the schema for the agents SDK output type with strict JSON-schema mode enabled for native OpenAI endpoints (api.openai.com) and disabled for custom endpoints (vLLM etc. via `OPENAI_BASE_URL`). When strict mode is enabled, the schema is transformed to add `additionalProperties: false` and list all properties as required at every object level, as OpenAI's strict mode requires.
 
-24. **Skills.** Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
+24. **Skills.** DeepAgents loads skills from the `cwd` directory via `skills=[cwd]` parameter passed to `create_deep_agent()`; the `SkillsMiddleware` handles discovery and progressive disclosure. Gemini loads a skill toolset from the skill directory listing. OpenAI uses lazy skill loading from a local directory source rooted at `cwd`.
 
 25. **Default allowed tools list.** Shared default names: `Bash`, `Read`, `Glob`, `Grep`, `Skill`. The HTTP route always passes this list unless a future contract exposes overrides. [PLANNED: OLS-3033]
 
@@ -72,6 +72,16 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 33. **MCP — OpenAI.** When `mcp_servers` is non-empty, the OpenAI adapter MUST create `MCPServerStreamableHttp` instances for each server (with resolved headers) and pass them to the agent's `mcp_servers` parameter.
 
+34. **MCP — DeepAgents.** When `mcp_servers` is non-empty, the DeepAgents adapter MUST load MCP tools via `langchain-mcp-adapters` `MultiServerMCPClient` and pass them to `create_deep_agent(tools=...)` where they merge with built-in harness tools.
+
+35. **Reasoning — DeepAgents.** When `reasoning_config` is present, the DeepAgents adapter MUST pass the `thinking` key from the config to the `ChatAnthropic*` model constructor. The adapter does not interpret the config — it passes through to the LangChain model as-is.
+
+36. **DeepAgents / Anthropic model routing.** The adapter resolves the model string to the correct LangChain chat model instance based on the backend configuration (see `configuration.md`). Direct Anthropic API uses `ChatAnthropic`. Vertex AI uses `ChatAnthropicVertex` (from `langchain_google_vertexai.model_garden`) with project and location from env. Bedrock uses `ChatAnthropicBedrock`. The resolved instance is passed to `create_deep_agent(model=...)`.
+
+37. **DeepAgents / tool execution.** The adapter uses `LocalShellBackend` which provides built-in shell (`execute`), filesystem (`ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`), and `delete` tools. The thin-adapter principle (rule 22) applies — tool execution is delegated to the deepagents backend.
+
+38. **DeepAgents / prompt caching.** `AnthropicPromptCachingMiddleware` is applied unconditionally by `create_deep_agent()` and no-ops for non-Anthropic models. No adapter-level configuration needed.
+
 ## Configuration Surface
 
 | Mechanism | Purpose |
@@ -80,15 +90,22 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 | `GOOGLE_GENAI_USE_VERTEXAI` | Gemini: Vertex vs consumer API behavior and tool mix. Set internally by configuration mapping (see `configuration.md` rule 2), not by operator. |
 | `OPENAI_BASE_URL` | OpenAI-compatible API endpoint override. Set internally by configuration mapping, not by operator. |
 | `GOOGLE_API_KEY`, `GEMINI_API_KEY` | Gemini credential and routing. Populated from credentials secret envFrom. |
+| `ANTHROPIC_API_KEY` | DeepAgents/Anthropic: direct API credential. Populated from credentials secret envFrom. |
+| `CLAUDE_CODE_USE_VERTEX` | DeepAgents/Anthropic: when `"1"`, adapter builds `ChatAnthropicVertex` instead of `ChatAnthropic`. Set by configuration mapping. |
+| `CLAUDE_CODE_USE_BEDROCK` | DeepAgents/Anthropic: when `"1"`, adapter builds Bedrock-compatible chat model. Set by configuration mapping. |
 
 ## Constraints
 
-- Not every adapter emits `thinking_delta` when reasoning is unconfigured; absence does not imply failure. When `reasoning_config` is set and the SDK produces reasoning output, the adapter MUST emit `thinking_delta` events (per rule 3).
-- Cost fields on `result` may be zero where the SDK does not report usage or price.
+- Not every adapter emits `thinking_delta` when reasoning is unconfigured; absence does not imply failure. DeepAgents MUST emit `thinking_delta` for Anthropic models that support extended thinking.
+- Cost fields on `result` may be zero where the SDK does not report usage or price. DeepAgents reports `cost_usd=0`; token counts are available via LangChain `usage_metadata`.
+- DeepAgents structured output via Pydantic model conversion does not support all JSON Schema features (`$ref`, `oneOf`, `allOf`, `additionalProperties`). Schemas used by the operator MUST stay within the supported subset.
 
 ## Planned Changes
 
-- Remove Claude SDK (`claude-agent-sdk`, `@anthropic-ai/claude-code` binary) and `ClaudeProvider`. Config paths `anthropic`, `vertex/anthropic`, `bedrock` pending rerouting to alternative agentic SDKs. [PLANNED: OLS-3473]
 - Parity improvements across providers (tools, streaming, structured output edge cases). [PLANNED: OLS-3047–OLS-3053]
 - BYOK and RAG integration hooks without breaking the thin-adapter rule. [PLANNED: OLS-3054–OLS-3057]
 - Align operator-passed `allowedTools` and `llm` with `ProviderQueryOptions`. [PLANNED: OLS-3033]
+- DeepAgents: token-level streaming via `astream_events()` instead of batch `stream_mode="messages"`. [PLANNED: OLS-3500]
+- DeepAgents: cost tracking from token counts x model pricing. [PLANNED: OLS-3500]
+- DeepAgents: `max_budget_usd` enforcement via adapter-level token cost tracking. [PLANNED: OLS-3500]
+- DeepAgents: `allowed_tools` filtering at `create_deep_agent(tools=...)` construction. [PLANNED: OLS-3500]

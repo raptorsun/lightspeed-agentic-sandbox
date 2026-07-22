@@ -19,13 +19,13 @@ from lightspeed_agentic.health import (
 )
 
 _ANTHROPIC_DIRECT = ResolvedSDK(
-    "claude",
+    "deepagents",
     ("ANTHROPIC_API_KEY",),
     "https://api.anthropic.com/",
 )
 
 _VERTEX_ANTHROPIC = ResolvedSDK(
-    "claude",
+    "deepagents",
     ("GOOGLE_APPLICATION_CREDENTIALS",),
     "https://us-east5-aiplatform.googleapis.com/",
 )
@@ -43,7 +43,7 @@ _OPENAI_DIRECT = ResolvedSDK(
 )
 
 _BEDROCK = ResolvedSDK(
-    "claude",
+    "deepagents",
     ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"),
     "https://bedrock-runtime.us-east-1.amazonaws.com/",
 )

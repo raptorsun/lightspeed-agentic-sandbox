@@ -10,14 +10,14 @@ spec:
     .tekton/integration-tests/scripts/run-sandbox-integration-tests.sh.
 
     Triggered per-provider by IntegrationTestScenario CRs:
-      sandbox-integration-claude, sandbox-integration-gemini, sandbox-integration-openai.
+      sandbox-integration-deepagents, sandbox-integration-gemini, sandbox-integration-openai.
   params:
     - name: SNAPSHOT
       description: 'The JSON string representing the snapshot of the application under test.'
       default: '{"components": [{"name":"lightspeed-agentic-sandbox", "containerImage": "quay.io/example/repo:latest"}]}'
       type: string
     - name: provider
-      description: 'LLM provider to test (claude, gemini, openai).'
+      description: 'LLM provider to test (deepagents, gemini, openai).'
       type: string
     - name: credential-secret
       description: 'Name of the Konflux workspace secret containing provider credentials.'

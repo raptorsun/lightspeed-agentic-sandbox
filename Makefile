@@ -51,7 +51,7 @@ image: ## Build container image for local development and evals
 
 EVAL_ARGS ?=
 
-eval: image ## Run evals against live containers (use EVAL_ARGS to filter, e.g. EVAL_ARGS="-k claude")
+eval: image ## Run evals against live containers (use EVAL_ARGS to filter, e.g. EVAL_ARGS="-k deepagents")
 	PYTEST="$(UV) run pytest" bash evals/run.sh $(EVAL_ARGS)
 
 eval-report: image ## Run evals and generate JSON report

@@ -78,7 +78,7 @@ Telemetry aligns with [OTel GenAI Semantic Conventions](https://github.com/open-
 
 ### Provider-Specific Instrumentation
 
-15. **Claude** (`providers/claude.py`): Emit `gen_ai.choice` span event with `gen_ai.completion` from text content in `StreamEvent`. Emit `gen_ai.choice` span event with `gen_ai.reasoning_content` from `thinking_delta` events. Create `execute_tool {name}` spans from `AssistantMessage` tool_use blocks and tool result messages. Set `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` from `ResultMessage`.
+15. **DeepAgents / Anthropic** (`providers/deepagents.py`): Emit `gen_ai.choice` span event with `gen_ai.completion` from `AIMessage` text content. Emit `gen_ai.choice` span event with `gen_ai.reasoning_content` from `AIMessage.content_blocks` entries with `type == "reasoning"`. Create `execute_tool {name}` spans from `AIMessage.tool_calls` and `ToolMessage` content. Set `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` from accumulated `usage_metadata`.
 
 16. **OpenAI** (`providers/openai.py`): Emit `gen_ai.choice` span event with `gen_ai.completion` from `RawResponsesStreamEvent` text deltas (buffered per-message). Create `execute_tool {name}` spans from `ToolCallItem` and `ToolCallOutputItem` events. No thinking events (OpenAI does not expose reasoning). Set token usage from the stream end.
 

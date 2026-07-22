@@ -1,7 +1,7 @@
 # Lightspeed Agentic Sandbox
 
 Multi-provider agentic sandbox for OpenShift Lightspeed. This repo exposes a
-FastAPI app plus provider adapters for Claude, Gemini, and OpenAI.
+FastAPI app plus provider adapters for DeepAgents (Anthropic), Gemini, and OpenAI.
 When editing it, optimize for thin provider wrappers, consistent event mapping,
 and tests that stay offline unless you are intentionally running containerized
 evals.
@@ -99,7 +99,7 @@ make test                              # unit tests only; mocked providers, no A
 make lint                              # ruff check src/ tests/ evals/
 make format                            # ruff format + autofix
 make eval                              # build image and run live evals in containers
-make eval EVAL_ARGS="-k claude"        # run a subset of evals
+make eval EVAL_ARGS="-k deepagents"    # run a subset of evals
 make eval-report                       # write evals/report.json
 ```
 
@@ -113,7 +113,7 @@ src/lightspeed_agentic/
 ├── tools.py              # Shared tool/skill utilities and defaults
 ├── types.py              # Provider events, query options, AgentProvider ABC
 ├── providers/
-│   ├── claude.py         # claude-agent-sdk adapter
+│   ├── deepagents.py     # deepagents (langchain-anthropic) adapter
 │   ├── gemini.py         # google-adk adapter
 │   └── openai.py         # openai-agents adapter
 └── routes/
@@ -122,12 +122,12 @@ src/lightspeed_agentic/
     └── models.py         # Pydantic request/response models
 ```
 
-| Feature | Claude (`claude-agent-sdk`) | Gemini (`google-adk`) | OpenAI (`openai-agents`) |
+| Feature | DeepAgents (`deepagents`) | Gemini (`google-adk`) | OpenAI (`openai-agents`) |
 | --- | --- | --- | --- |
-| Tools | Built-in SDK tools | Native `ExecuteBashTool` plus built-in web tools | Native `SandboxAgent` shell/filesystem/skills |
-| Skills | Native `skills="all"` | Native `SkillToolset` | Native `Skills` capability |
-| Structured output | `output_format` JSON schema | Native response schema path | `output_type` wrapper |
-| Streaming | Partial message stream events | `StreamingMode.SSE` | `Runner.run_streamed()` |
+| Tools | `LocalShellBackend` + MCP tools | Native `ExecuteBashTool` plus built-in web tools | Native `SandboxAgent` shell/filesystem/skills |
+| Skills | Skills dirs passed to `create_deep_agent()` | Native `SkillToolset` | Native `Skills` capability |
+| Structured output | `response_format` Pydantic model | Native response schema path | `output_type` wrapper |
+| Streaming | `astream(stream_mode="messages")` | `StreamingMode.SSE` | `Runner.run_streamed()` |
 
 Keep provider adapters thin. The SDK should own tool execution and skill
 discovery; shared path logic belongs in `tools.py`, not in duplicated provider
@@ -181,14 +181,11 @@ starts, with no network access during the build itself.
 | `rpms.lock.yaml` | Resolved RPM lockfile | `make rpm-lockfile` |
 | `ubi.repo` | UBI 9 repo definitions for RPM resolution | Rarely changes |
 | `artifacts.lock.yaml` | External binaries (oc, ripgrep) | Edit manually, update checksums |
-| `package.json` / `package-lock.json` | npm deps (claude-code CLI) | `npm install --package-lock-only` |
-
 ### Bumping dependencies
 
 ```bash
 make bump-deps          # upgrade uv.lock + regenerate requirements.{arch}.txt
 make rpm-lockfile       # regenerate rpms.lock.yaml (needs podman)
-npm update              # update package-lock.json for claude-code
 ```
 
 After bumping, commit all changed lockfiles and requirements files together.
@@ -231,13 +228,13 @@ The Konflux pipeline will prefetch the new versions on the next PR.
 | `LIGHTSPEED_CAPTURE_CONTENT` | Opt-in LLM content capture for audit (gen_ai.completion/reasoning_content) |
 | `LIGHTSPEED_REASONING_CONFIG` | JSON object with reasoning/thinking params, parsed at startup, passed to adapters |
 | `LIGHTSPEED_SKILLS_DIR` | Skills root mounted by the FastAPI app, default `/app/skills` |
-| `ANTHROPIC_MODEL` | Default Claude model for query routes |
+| `ANTHROPIC_MODEL` | Default Anthropic model for query routes |
 | `GEMINI_MODEL` | Default Gemini model for query routes |
 | `OPENAI_MODEL` | Default OpenAI model for query routes |
 | `OPENAI_BASE_URL` | Optional OpenAI-compatible endpoint override |
-| `CLAUDE_CODE_USE_VERTEX` | When set to `1`, Claude uses Vertex-backed Anthropic (Claude agent SDK / Claude Code) |
-| `ANTHROPIC_VERTEX_PROJECT_ID` | Vertex project for Claude via Vertex |
-| `CLOUD_ML_REGION` | Vertex region for Claude via Vertex (default `us-east5`) |
+| `CLAUDE_CODE_USE_VERTEX` | When set to `1`, DeepAgents uses Vertex-backed Anthropic (`ChatAnthropicVertex`) |
+| `ANTHROPIC_VERTEX_PROJECT_ID` | Vertex project for Anthropic via Vertex |
+| `CLOUD_ML_REGION` | Vertex region for Anthropic via Vertex (default `us-east5`) |
 | `EVAL_SERVER_URLS` | Provider-to-URL map exported by `evals/run.sh` for eval pytest fixtures |
 | `EVAL_WORKSPACES` | Provider-to-output-workspace map exported by `evals/run.sh` for eval pytest fixtures |
 

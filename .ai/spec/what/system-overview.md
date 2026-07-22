@@ -1,6 +1,6 @@
 # System Overview
 
-The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs inside ephemeral Kubernetes pods. It exposes a single HTTP endpoint (`POST /v1/agent/run`) consumed by the OpenShift Lightspeed operator. The runtime wraps Claude, Gemini, and OpenAI LLM provider SDKs behind a unified provider abstraction and returns structured JSON responses.
+The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs inside ephemeral Kubernetes pods. It exposes a single HTTP endpoint (`POST /v1/agent/run`) consumed by the OpenShift Lightspeed operator. The runtime wraps DeepAgents (for Anthropic/Claude models), Gemini, and OpenAI LLM provider SDKs behind a unified provider abstraction and returns structured JSON responses.
 
 ## Behavioral Rules
 
@@ -14,7 +14,7 @@ The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs insid
 
 ### Component Inventory
 
-4. The system has four major components: the HTTP API layer (routes, request/response models), the provider abstraction (factory, query options, event model), the provider adapters (Claude, Gemini, OpenAI), and the health probes (liveness, readiness).
+4. The system has four major components: the HTTP API layer (routes, request/response models), the provider abstraction (factory, query options, event model), the provider adapters (DeepAgents/Anthropic, Gemini, OpenAI), and the health probes (liveness, readiness).
 
 5. Component behavioral rules are specified in dedicated files: `run-api.md` (HTTP layer), `provider-contract.md` (provider abstraction and adapters), `configuration.md` (env vars, deployment, build), `health-probes.md` (liveness and readiness endpoints).
 
@@ -22,7 +22,7 @@ The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs insid
 
 6. At startup, the process constructs a single provider instance via the factory, builds an API router with environment-resolved defaults, and serves on port 8080.
 
-7. The provider is selected once at startup via `LIGHTSPEED_AGENT_PROVIDER` and cannot change during the process lifetime.
+7. The provider is selected once at startup via `LIGHTSPEED_PROVIDER` and cannot change during the process lifetime.
 
 8. Model resolution happens once at router construction time via provider-specific environment variables, with a package-level default fallback.
 
@@ -38,7 +38,7 @@ The lightspeed-agentic-sandbox is a multi-provider agent runtime that runs insid
 
 | Field/Flag | Type | Default | Description |
 |---|---|---|---|
-| `LIGHTSPEED_AGENT_PROVIDER` | string | `claude` | Selects the provider backend |
+| `LIGHTSPEED_PROVIDER` | string | `anthropic` | Selects the provider backend (resolves to `deepagents`, `gemini`, or `openai` SDK) |
 | `LIGHTSPEED_SKILLS_DIR` | string | `/app/skills` | Skill root and provider working directory |
 | `ANTHROPIC_MODEL` / `GEMINI_MODEL` / `OPENAI_MODEL` | string | `claude-opus-4-6` | Per-provider model override |
 

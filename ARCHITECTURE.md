@@ -10,14 +10,14 @@ The sandbox sits between the operator (workflow engine) and the LLM provider API
 graph LR
     Operator["Lightspeed Operator<br/>(workflow engine)"]
     Sandbox["Agentic Sandbox<br/>(FastAPI)"]
-    Claude["Claude API<br/>(Anthropic)"]
+    Anthropic["Anthropic API<br/>(via DeepAgents)"]
     Gemini["Gemini API<br/>(Google)"]
     OpenAI["OpenAI API"]
     Skills["Skills<br/>(mounted volume)"]
 
     Operator -->|"POST /v1/agent/run<br/>RunRequest JSON"| Sandbox
     Sandbox -->|RunResponse JSON| Operator
-    Sandbox -->|provider SDK| Claude
+    Sandbox -->|provider SDK| Anthropic
     Sandbox -->|provider SDK| Gemini
     Sandbox -->|provider SDK| OpenAI
     Sandbox -->|filesystem| Skills
@@ -43,7 +43,7 @@ graph TD
     end
 
     subgraph "Provider Adapters"
-        ClaudeP["claude.py<br/>ClaudeProvider"]
+        DeepAgentsP["deepagents.py<br/>DeepAgentsProvider"]
         GeminiP["gemini.py<br/>GeminiProvider"]
         OpenAIP["openai.py<br/>OpenAIProvider"]
     end
@@ -54,7 +54,7 @@ graph TD
     App --> Health
     Query --> Types
     Query --> Logger
-    Factory -->|lazy import| ClaudeP
+    Factory -->|lazy import| DeepAgentsP
     Factory -->|lazy import| GeminiP
     Factory -->|lazy import| OpenAIP
 ```
@@ -100,7 +100,7 @@ Each adapter is a thin wrapper. The SDK owns tool execution, skill discovery, an
 
 | Provider | SDK | Structured Output | Skills | Tools |
 |---|---|---|---|---|
-| Claude | `claude-agent-sdk` | `output_format` JSON schema | Native `skills="all"` | Built-in SDK tools |
+| DeepAgents | `deepagents` + `langchain-anthropic` | `response_format` Pydantic model | Skills dirs passed to `create_deep_agent()` | `LocalShellBackend` + MCP tools |
 | Gemini | `google-adk` | Response schema on content config | `SkillToolset` from directory | `ExecuteBashTool` + web tools |
 | OpenAI | `openai-agents` | `output_type` wrapper | `Skills` capability | `SandboxAgent` shell/filesystem |
 
@@ -115,12 +115,11 @@ graph TD
         Base["UBI 9 base"]
         Sys["System packages<br/>(bash, git, oc, kubectl, ripgrep, catatonit)"]
         Py["Python 3.12 + site-packages<br/>(FastAPI, provider SDKs)"]
-        Node["Node.js + claude-code CLI"]
         AppSrc["Application source<br/>/app/src/"]
         SkillMount["Skills mount<br/>/app/skills/ (read-only)"]
     end
 
-    Base --> Sys --> Py --> Node --> AppSrc
+    Base --> Sys --> Py --> AppSrc
     AppSrc -.-> SkillMount
 
     subgraph "Runtime"
@@ -141,4 +140,4 @@ The container runs as a non-root `agent` user. `catatonit` is the init process (
 
 - **Lazy SDK imports:** Provider SDK packages are optional extras. The factory uses `match`-based lazy imports so the base package loads without any vendor SDK installed.
 
-- **Hermetic builds:** All dependencies (Python wheels, RPMs, npm packages, external binaries) are declared in lockfiles and prefetched before the build starts. This ensures reproducible, auditable images.
+- **Hermetic builds:** All dependencies (Python wheels, RPMs, external binaries) are declared in lockfiles and prefetched before the build starts. This ensures reproducible, auditable images.

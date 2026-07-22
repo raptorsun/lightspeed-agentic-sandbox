@@ -33,10 +33,10 @@ def _run_quiet(cmd: list[str], timeout: int = 10) -> tuple[bool, str]:
         return False, ""
 
 
-def _check_claude() -> ProviderCredentialStatus:
+def _check_deepagents() -> ProviderCredentialStatus:
     if os.environ.get("ANTHROPIC_API_KEY"):
         return ProviderCredentialStatus(
-            "claude",
+            "deepagents",
             True,
             "env",
             "ANTHROPIC_API_KEY set",
@@ -46,7 +46,7 @@ def _check_claude() -> ProviderCredentialStatus:
         gac = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "")
         if gac and os.path.isfile(gac):
             return ProviderCredentialStatus(
-                "claude",
+                "deepagents",
                 True,
                 "env",
                 "Vertex AI credentials file",
@@ -54,13 +54,13 @@ def _check_claude() -> ProviderCredentialStatus:
         ok, _ = _run_quiet(["gcloud", "auth", "application-default", "print-access-token"])
         if ok:
             return ProviderCredentialStatus(
-                "claude",
+                "deepagents",
                 True,
                 "gcloud",
                 "gcloud application-default credentials",
             )
         return ProviderCredentialStatus(
-            "claude",
+            "deepagents",
             False,
             "none",
             "CLAUDE_CODE_USE_VERTEX=1 but no credentials file or gcloud ADC",
@@ -69,7 +69,7 @@ def _check_claude() -> ProviderCredentialStatus:
     if os.environ.get("CLAUDE_CODE_USE_BEDROCK") == "1":
         if os.environ.get("AWS_ACCESS_KEY_ID") and os.environ.get("AWS_SECRET_ACCESS_KEY"):
             return ProviderCredentialStatus(
-                "claude",
+                "deepagents",
                 True,
                 "env",
                 "AWS Bedrock credentials via env vars",
@@ -77,20 +77,20 @@ def _check_claude() -> ProviderCredentialStatus:
         ok, _ = _run_quiet(["aws", "configure", "get", "aws_access_key_id"])
         if ok:
             return ProviderCredentialStatus(
-                "claude",
+                "deepagents",
                 True,
                 "aws_cli",
                 "AWS credentials via aws configure",
             )
         return ProviderCredentialStatus(
-            "claude",
+            "deepagents",
             False,
             "none",
             "CLAUDE_CODE_USE_BEDROCK=1 but no AWS credentials found",
         )
 
     return ProviderCredentialStatus(
-        "claude",
+        "deepagents",
         False,
         "none",
         "ANTHROPIC_API_KEY not set (or set CLAUDE_CODE_USE_VERTEX=1 / CLAUDE_CODE_USE_BEDROCK=1)",
@@ -170,7 +170,7 @@ def _check_openai() -> ProviderCredentialStatus:
 
 
 _CHECKERS = {
-    "claude": _check_claude,
+    "deepagents": _check_deepagents,
     "gemini": _check_gemini,
     "openai": _check_openai,
 }

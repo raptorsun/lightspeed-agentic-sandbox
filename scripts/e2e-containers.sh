@@ -124,7 +124,7 @@ _verify_image_app_source() {
 
 provider_to_image_provider() {
     case "$1" in
-        claude)
+        deepagents)
             if [ -n "${GCLOUD_MOUNT}" ]; then echo "vertex"; else echo "anthropic"; fi
             ;;
         gemini) echo "vertex" ;;
@@ -134,7 +134,7 @@ provider_to_image_provider() {
 
 provider_to_model_provider() {
     case "$1" in
-        claude)
+        deepagents)
             if [ -n "${GCLOUD_MOUNT}" ]; then echo "anthropic"; else echo ""; fi
             ;;
         gemini) echo "google" ;;
@@ -146,7 +146,7 @@ apply_model_override() {
     local provider="$1"
     local model="$2"
     case "${provider}" in
-        claude) export ANTHROPIC_MODEL="${model}" ;;
+        deepagents) export ANTHROPIC_MODEL="${model}" ;;
         gemini) export GEMINI_MODEL="${model}" ;;
         openai) export OPENAI_MODEL="${model}" ;;
         *)
@@ -249,7 +249,7 @@ trap cleanup EXIT
 model_env_var() {
     local provider="$1"
     case "${provider}" in
-        claude) printf '%s' "LIGHTSPEED_MODEL=${ANTHROPIC_MODEL:-}" ;;
+        deepagents) printf '%s' "LIGHTSPEED_MODEL=${ANTHROPIC_MODEL:-}" ;;
         gemini) printf '%s' "LIGHTSPEED_MODEL=${GEMINI_MODEL:-}" ;;
         openai) printf '%s' "LIGHTSPEED_MODEL=${OPENAI_MODEL:-}" ;;
         *)
@@ -264,7 +264,7 @@ sync_provider_model() {
     local provider="$1"
     unset LIGHTSPEED_MODEL
     case "${provider}" in
-        claude)
+        deepagents)
             export LIGHTSPEED_MODEL="${ANTHROPIC_MODEL:-}"
             export ANTHROPIC_MODEL="${LIGHTSPEED_MODEL}"
             ;;
@@ -286,7 +286,7 @@ sync_provider_model() {
 provider_sdk_model_env() {
     local provider="$1"
     case "${provider}" in
-        claude) printf '%s' "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}" ;;
+        deepagents) printf '%s' "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}" ;;
         gemini) printf '%s' "GEMINI_MODEL=${GEMINI_MODEL:-}" ;;
         openai) printf '%s' "OPENAI_MODEL=${OPENAI_MODEL:-}" ;;
         *)
@@ -580,7 +580,7 @@ run_one() {
     return "${pytest_exit}"
 }
 
-PROVIDERS=(claude gemini openai)
+PROVIDERS=(deepagents gemini openai)
 
 if [[ "${E2E_PROW_HOST}" == "1" ]]; then
     if [[ $# -lt 1 ]]; then

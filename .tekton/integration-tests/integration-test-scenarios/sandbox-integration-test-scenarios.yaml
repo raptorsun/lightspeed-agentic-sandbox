@@ -2,23 +2,23 @@
 # Apply to crt-nshift-lightspeed-tenant. Each scenario triggers the shared
 # sandbox-integration-test-pipeline with provider-specific credentials.
 #
-# These replace the Prow e2e-claude, e2e-gemini, and e2e-openai presubmit jobs.
+# These replace the Prow e2e-deepagents, e2e-gemini, and e2e-openai presubmit jobs.
 ---
 apiVersion: appstudio.redhat.com/v1beta2
 kind: IntegrationTestScenario
 metadata:
-  name: sandbox-integration-claude
+  name: sandbox-integration-deepagents
   namespace: crt-nshift-lightspeed-tenant
   labels:
     test.appstudio.openshift.io/optional: "true"
 spec:
   application: ols
   contexts:
-    - description: Sandbox integration test — Claude (Vertex)
+    - description: Sandbox integration test — DeepAgents (Vertex)
       name: component_lightspeed-agentic-sandbox
   params:
     - name: provider
-      value: claude
+      value: deepagents
     - name: credential-secret
       value: vertex-apitoken
   resolverRef:

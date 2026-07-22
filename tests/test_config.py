@@ -56,7 +56,7 @@ def test_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk.name == "claude"
+    assert sdk.name == "deepagents"
     assert sdk.probe_url == "https://api.anthropic.com/"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
 
@@ -82,7 +82,7 @@ def test_vertex_anthropic(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk.name == "claude"
+    assert sdk.name == "deepagents"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
     assert os.environ["CLAUDE_CODE_USE_VERTEX"] == "1"
     assert os.environ["ANTHROPIC_VERTEX_PROJECT_ID"] == "my-project"
@@ -189,7 +189,7 @@ def test_bedrock(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk.name == "claude"
+    assert sdk.name == "deepagents"
     assert os.environ["ANTHROPIC_MODEL"] == "claude-sonnet-4-20250514"
     assert os.environ["CLAUDE_CODE_USE_BEDROCK"] == "1"
     assert os.environ["AWS_REGION"] == "us-east-1"
@@ -200,7 +200,7 @@ def test_default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
 
     sdk = resolve_sdk()
 
-    assert sdk.name == "claude"
+    assert sdk.name == "deepagents"
 
 
 def test_default_model_not_set(monkeypatch: pytest.MonkeyPatch) -> None:

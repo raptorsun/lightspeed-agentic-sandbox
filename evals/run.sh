@@ -22,7 +22,7 @@ fi
 VERTEX_PROJECT="${ANTHROPIC_VERTEX_PROJECT_ID:-${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project 2>/dev/null || true)}}"
 VERTEX_REGION="${CLOUD_ML_REGION:-${GOOGLE_CLOUD_LOCATION:-us-east5}}"
 
-PROVIDERS=("claude" "gemini" "openai")
+PROVIDERS=("deepagents" "gemini" "openai")
 CONTAINERS=()
 WORKDIRS=()
 OUTDIRS=()
@@ -43,7 +43,7 @@ trap cleanup EXIT
 
 model_env() {
     case "$1" in
-        claude) echo "-e LIGHTSPEED_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}" ;;
+        deepagents) echo "-e LIGHTSPEED_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}" ;;
         gemini) echo "-e LIGHTSPEED_MODEL=${GEMINI_MODEL:-gemini-3.1-pro-preview}" ;;
         openai) echo "-e LIGHTSPEED_MODEL=${OPENAI_MODEL:-gpt-5.4}" ;;
     esac
@@ -56,11 +56,11 @@ mkdir -p "$(pwd)/.eval-workspaces"
 for i in "${!PROVIDERS[@]}"; do
     name="${PROVIDERS[$i]}"
     port=$((BASE_PORT + i))
-    if [ -n "${GCLOUD_MOUNT}" ] && [[ "$name" == "claude" ]]; then
+    if [ -n "${GCLOUD_MOUNT}" ] && [[ "$name" == "deepagents" ]]; then
         agent_provider="vertex"; model_provider="anthropic"
     else
         case "$name" in
-            claude) agent_provider="anthropic"; model_provider="" ;;
+            deepagents) agent_provider="anthropic"; model_provider="" ;;
             gemini) agent_provider="vertex"; model_provider="google" ;;
             *) agent_provider="$name"; model_provider="" ;;
         esac

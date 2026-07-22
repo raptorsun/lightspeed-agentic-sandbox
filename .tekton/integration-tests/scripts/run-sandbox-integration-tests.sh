@@ -15,8 +15,13 @@
 set -euo pipefail
 trap 'echo "error: $0 line $LINENO: command \"$BASH_COMMAND\" exited with status $?" >&2' ERR
 
-PROVIDER="${1:?Usage: $0 <provider> (claude|gemini|openai)}"
+PROVIDER="${1:?Usage: $0 <provider> (deepagents|gemini|openai)}"
 CRED_PATH="/var/run/credentials/token"
+
+# Accept "claude" as a legacy alias until Konflux IntegrationTestScenario CRs are updated.
+if [[ "${PROVIDER}" == "claude" ]]; then
+    PROVIDER="deepagents"
+fi
 
 if [ ! -f "${CRED_PATH}" ]; then
     echo "error: credential file not found at ${CRED_PATH}" >&2
@@ -25,7 +30,7 @@ fi
 
 # --- Set up provider credentials ---
 case "${PROVIDER}" in
-  claude)
+  deepagents)
     mkdir -p "${HOME}/.config/gcloud"
     cp "${CRED_PATH}" "${HOME}/.config/gcloud/application_default_credentials.json"
     export GOOGLE_APPLICATION_CREDENTIALS="${CRED_PATH}"
