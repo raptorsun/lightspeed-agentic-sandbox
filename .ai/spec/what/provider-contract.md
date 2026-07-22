@@ -10,7 +10,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 2. **Text delta (`text_delta`).** Carries incremental natural-language or assistant text chunks for logging or streaming use.
 
-3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text. When reasoning is configured and the SDK produces reasoning output, all adapters MUST emit `thinking_delta` events. DeepAgents emits from `AIMessage.content_blocks` with `type == "reasoning"`. Claude emits from `thinking_delta` stream events. Gemini MUST emit from `ThinkingConfig` thought parts when `include_thoughts` is enabled. OpenAI MUST emit from reasoning items in the response stream.
+3. **Thinking delta (`thinking_delta`).** Carries incremental chain-of-thought or reasoning text. When reasoning is configured and the SDK produces reasoning output, all adapters MUST emit `thinking_delta` events. DeepAgents emits from `AIMessage.content_blocks` with `type == "reasoning"`. Gemini MUST emit from `ThinkingConfig` thought parts when `include_thoughts` is enabled. OpenAI MUST emit from reasoning items in the response stream.
 
 4. **Content block stop (`content_block_stop`).** Signals that a content or tool block has completed; used by logging to flush buffered thinking.
 
@@ -42,7 +42,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 18. **ProviderQueryOptions — `reasoning_config`.** Optional dict (JSON object). When present, adapters MUST map it to their SDK's native reasoning/thinking parameters. When absent or `None`, adapters MUST NOT set any reasoning parameters and SDK defaults apply. Contents are provider- and model-specific; each adapter picks the keys it recognizes and maps them to SDK parameters — unrecognized keys are silently ignored. Invalid values on recognized keys are rejected by the upstream SDK/API at invocation time, not by the adapter.
 
-19. **Reasoning — Claude.** When `reasoning_config` is present, the Claude adapter MUST map it to `ClaudeAgentOptions` fields: `thinking` (dict with `type`, optional `budget_tokens`) and/or `effort` (string: `low`/`medium`/`high`/`max`). The adapter reads these keys directly from `reasoning_config` and passes them to the SDK constructor.
+19. **[Removed]** *(Claude adapter was removed in OLS-3500; Anthropic reasoning is now handled by the DeepAgents adapter — see rule 35.)*
 
 20. **Reasoning — Gemini.** When `reasoning_config` is present, the Gemini adapter MUST construct a `types.ThinkingConfig` from the config keys (e.g. `thinking_budget`, `thinking_level`, `include_thoughts`) and pass it via `GenerateContentConfig.thinking_config` on the Agent. Unknown keys in the config are ignored; the Gemini API validates at invocation time.
 
@@ -66,7 +66,7 @@ Cross-references: HTTP mapping of prompts and timeouts → `run-api.md`. Env and
 
 30. **OpenAI client.** The OpenAI adapter constructs an async OpenAI client with optional base URL override from environment (see `configuration.md`).
 
-31. **MCP — Claude.** When `mcp_servers` is non-empty, the Claude adapter MUST pass them as `ClaudeAgentOptions(mcp_servers={...})` using `"type": "http"` (Streamable HTTP) entries with `url` and `headers` from the resolved config. The adapter MUST add `mcp__<name>__*` wildcard patterns to `allowed_tools` for each configured MCP server so the SDK can invoke discovered tools.
+31. **[Removed]** *(Claude adapter was removed in OLS-3500; MCP for Anthropic models is now handled by the DeepAgents adapter — see rule 34.)*
 
 32. **MCP — Gemini.** When `mcp_servers` is non-empty, the Gemini adapter MUST create `McpToolset` instances with `StreamableHTTPConnectionParams` for each server (including resolved headers) and add them to the agent's `tools` list alongside existing tools.
 

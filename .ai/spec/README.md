@@ -25,7 +25,7 @@ These specs define the behavioral rules and codebase navigation for the lightspe
 | Spec | Description |
 |------|-------------|
 | [project-structure.md](how/project-structure.md) | Module map, entry points, naming conventions, dependency organization |
-| [provider-architecture.md](how/provider-architecture.md) | Per-provider SDK wrappers (Claude/Gemini/OpenAI), data flow, key abstractions, container build |
+| [provider-architecture.md](how/provider-architecture.md) | Per-provider SDK wrappers (DeepAgents/Gemini/OpenAI), data flow, key abstractions, container build |
 
 ## Scope
 
@@ -68,6 +68,6 @@ AI agents. Content is optimized for precision and machine consumption.
 
 ## Project Context
 
-This is the agent runtime that runs inside ephemeral sandbox pods. The operator sends requests to `POST /v1/agent/run` and receives structured JSON responses. The runtime wraps multiple LLM provider SDKs (Claude, Gemini, OpenAI) behind a single interface.
+This is the agent runtime that runs inside ephemeral sandbox pods. The operator sends requests to `POST /v1/agent/run` and receives structured JSON responses. The runtime wraps multiple LLM provider SDKs (DeepAgents, Gemini, OpenAI) behind a single interface.
 
 Jira tracking: Feature OCPSTRAT-3095, Epic OLS-2894.
