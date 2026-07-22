@@ -4,7 +4,7 @@
 # Regenerate: make requirements
 #
 calver==2025.10.20
-certifi==2026.6.17
+certifi==2026.7.22
 cffi==2.1.0
 charset-normalizer==3.4.9
 coherent-licensed==0.5.2
@@ -28,8 +28,11 @@ markdown-it-py==4.2.0
 markupsafe==3.0.3
 maturin==1.14.1
 mdurl==0.1.2
+meson==1.11.2
+meson-python==0.20.0
 more-itertools==11.1.0
 nh3==0.3.6
+numpy==2.5.1
 packaging==26.2
 pathspec==1.1.1
 pdm-backend==2.4.9
@@ -38,6 +41,7 @@ pluggy==1.6.0
 poetry-core==2.4.1
 pycparser==3.0
 pygments==2.20.0
+pyproject-metadata==0.12.1
 readme-renderer==45.0
 requests==2.34.2
 requests-toolbelt==1.0.0
@@ -47,12 +51,13 @@ secretstorage==3.5.0
 semantic-version==2.10.0
 setuptools==83.0.0
 setuptools-rust==1.13.0
-setuptools-scm==10.2.0
+setuptools-scm==10.2.1
 tomlkit==0.15.1
 trove-classifiers==2026.6.1.19
 twine==6.2.0
 urllib3==2.7.0
 uv-dynamic-versioning==0.14.0
 vcs-versioning==2.2.2
+versioneer==0.29
 wheel==0.47.0
 hatchling==1.26.3
